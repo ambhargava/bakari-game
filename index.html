@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bakari Game</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <h1>Bakari Game</h1>
+        <p class="subtitle">Find all hidden goat faces</p>
+      </header>
+
+      <section class="panel">
+        <div class="difficulty-row">
+          <label for="difficulty">Difficulty</label>
+          <select id="difficulty" aria-label="Select difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+
+        <div class="seed-row">
+          <label for="seed-input">Seed</label>
+          <input id="seed-input" type="text" maxlength="40" autocomplete="off" />
+          <button id="load-seed-btn" type="button">Load Seed</button>
+        </div>
+
+        <div class="button-row">
+          <button id="new-puzzle-btn" type="button">New Puzzle</button>
+          <button id="restart-btn" type="button">Restart</button>
+          <button id="hint-btn" type="button">Hint</button>
+        </div>
+
+        <p id="status" class="status" aria-live="polite"></p>
+      </section>
+
+      <section class="board-wrap">
+        <div id="board" class="board" role="grid" aria-label="Bakari puzzle board"></div>
+        <div id="win-banner" class="win-banner" aria-live="polite">🎉 You found all goats! 🎉</div>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
