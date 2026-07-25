@@ -146,8 +146,7 @@ button:active {
   border: 0;
   border-radius: 9px;
   aspect-ratio: 1 / 1;
-  min-height: 42px;
-  font-size: clamp(1rem, 4.2vw, 1.4rem);
+  font-size: clamp(0.6rem, 4.2vw, 1.4rem);
   font-weight: 700;
   display: grid;
   place-items: center;
