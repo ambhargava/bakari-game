@@ -1,61 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Funny goat face option 3">
   <defs>
-    <radialGradient id="faceGrad3" cx="48%" cy="42%" r="62%">
+    <radialGradient id="fg3" cx="48%" cy="42%" r="62%">
       <stop offset="0%" stop-color="#fff2d6"/>
       <stop offset="100%" stop-color="#eac08a"/>
     </radialGradient>
   </defs>
-
   <rect width="256" height="256" fill="none"/>
 
-  <!-- Long droopy Nubian-style ears (hanging down, behind head) -->
-  <path d="M48 96 C38 112, 28 140, 34 164 C40 180, 56 182, 66 168 C76 154, 72 120, 62 100 Z"
-        fill="#fdf0dc" stroke="#704423" stroke-width="5"/>
-  <path d="M208 96 C218 112, 228 140, 222 164 C216 180, 200 182, 190 168 C180 154, 184 120, 194 100 Z"
-        fill="#fdf0dc" stroke="#704423" stroke-width="5"/>
-  <path d="M52 100 C44 116, 36 140, 40 160 C44 172, 54 174, 62 162 C68 150, 66 122, 58 104 Z"
-        fill="#f4a8a8"/>
-  <path d="M204 100 C212 116, 220 140, 216 160 C212 172, 202 174, 194 162 C188 150, 190 122, 198 104 Z"
-        fill="#f4a8a8"/>
+  <!-- Droopy Nubian-style ears (hanging down) -->
+  <ellipse cx="42" cy="132" rx="16" ry="32" fill="#fdf0dc" stroke="#704423" stroke-width="4" transform="rotate(10 42 132)"/>
+  <ellipse cx="214" cy="132" rx="16" ry="32" fill="#fdf0dc" stroke="#704423" stroke-width="4" transform="rotate(-10 214 132)"/>
+  <ellipse cx="42" cy="132" rx="9" ry="20" fill="#f4a8a8" transform="rotate(10 42 132)"/>
+  <ellipse cx="214" cy="132" rx="9" ry="20" fill="#f4a8a8" transform="rotate(-10 214 132)"/>
 
-  <!-- Head/face -->
-  <ellipse cx="128" cy="130" rx="84" ry="68" fill="url(#faceGrad3)" stroke="#704423" stroke-width="7"/>
+  <!-- Short stubby outward-curving billy-goat horns — bases hidden under face -->
+  <path d="M 94 80 C 78 64, 44 58, 30 66 C 28 54, 52 40, 84 52 C 102 60, 110 76, 108 82 Z"
+        fill="#a07830" stroke="#6b5020" stroke-width="1.5"/>
+  <path d="M 162 80 C 178 64, 212 58, 226 66 C 228 54, 204 40, 172 52 C 154 60, 146 76, 148 82 Z"
+        fill="#a07830" stroke="#6b5020" stroke-width="1.5"/>
 
-  <!-- Twisted Markhor-style horns (corkscrew spiral) -->
-  <!-- Left horn: main spiral stroke -->
-  <path d="M98 70 C82 50, 66 32, 58 14 C68 8, 84 16, 92 36 C96 48, 92 58, 82 62 C72 66, 62 58, 64 46"
-        fill="none" stroke="#9a7028" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Left horn highlight for 3D twist effect -->
-  <path d="M98 70 C84 52, 70 36, 62 18"
-        fill="none" stroke="#c4a850" stroke-width="5" stroke-linecap="round"/>
-  <!-- Right horn: mirror spiral -->
-  <path d="M158 70 C174 50, 190 32, 198 14 C188 8, 172 16, 164 36 C160 48, 164 58, 174 62 C184 66, 194 58, 192 46"
-        fill="none" stroke="#9a7028" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Right horn highlight -->
-  <path d="M158 70 C172 52, 186 36, 194 18"
-        fill="none" stroke="#c4a850" stroke-width="5" stroke-linecap="round"/>
+  <!-- Head (covers horn bases) -->
+  <ellipse cx="128" cy="130" rx="80" ry="64" fill="url(#fg3)" stroke="#704423" stroke-width="7"/>
 
-  <!-- Left eye: winking (squinted shut) -->
-  <path d="M87 116 C95 106, 111 106, 117 116" fill="none" stroke="#191511" stroke-width="7" stroke-linecap="round"/>
-  <!-- Right eye: open and playful -->
-  <circle cx="158" cy="116" r="14" fill="#191511"/>
-  <circle cx="154" cy="110" r="4" fill="#fff"/>
+  <!-- Left eye: winking (arc, shut) with lashes -->
+  <path d="M 84 116 C 92 104, 112 104, 118 116" fill="none" stroke="#191511" stroke-width="7" stroke-linecap="round"/>
+  <path d="M 88 109 L 84 102" stroke="#191511" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 100 106 L 100 98" stroke="#191511" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 113 109 L 116 102" stroke="#191511" stroke-width="3" stroke-linecap="round"/>
 
-  <!-- Elongated goat muzzle/snout -->
-  <ellipse cx="128" cy="162" rx="36" ry="26" fill="#ffe5cb" stroke="#704423" stroke-width="5"/>
+  <!-- Right eye: amber iris + horizontal slit pupil -->
+  <circle cx="156" cy="116" r="16" fill="#c8860a"/>
+  <rect x="143" y="113" width="26" height="7" rx="3" fill="#1a1208"/>
+  <circle cx="151" cy="110" r="4" fill="white" opacity="0.9"/>
+
+  <!-- Trapezoidal muzzle/snout -->
+  <path d="M 92 150 L 164 150 C 168 164, 166 182, 154 190 C 142 198, 114 198, 102 190 C 90 182, 88 164, 92 150 Z"
+        fill="#ffe5cb" stroke="#704423" stroke-width="5"/>
   <!-- Nostrils -->
-  <ellipse cx="116" cy="160" rx="6" ry="5" fill="#5e3b25"/>
-  <ellipse cx="140" cy="160" rx="6" ry="5" fill="#5e3b25"/>
+  <ellipse cx="112" cy="168" rx="9" ry="7" fill="#5e3b25"/>
+  <ellipse cx="144" cy="168" rx="9" ry="7" fill="#5e3b25"/>
 
   <!-- Cheeky asymmetric smirk -->
-  <path d="M107 178 C118 190, 134 193, 150 183" fill="none" stroke="#5a2e2e" stroke-width="6" stroke-linecap="round"/>
+  <path d="M 108 180 C 122 186, 138 190, 154 180" fill="none" stroke="#5a2e2e" stroke-width="6" stroke-linecap="round"/>
 
-  <!-- Big bushy goatee/beard -->
-  <ellipse cx="128" cy="202" rx="22" ry="10" fill="#d4b896" stroke="#704423" stroke-width="3"/>
-  <path d="M106 202 C106 226, 114 244, 128 250 C142 244, 150 226, 150 202 Z"
+  <!-- Bushy triangular goatee -->
+  <path d="M 108 198 L 128 248 L 148 198 C 142 206, 114 206, 108 198 Z"
         fill="#d4b896" stroke="#704423" stroke-width="3"/>
 
-  <!-- Blush marks -->
-  <ellipse cx="76" cy="148" rx="10" ry="7" fill="#f5afa2" opacity="0.75"/>
-  <ellipse cx="180" cy="148" rx="10" ry="7" fill="#f5afa2" opacity="0.75"/>
+  <!-- Blush -->
+  <ellipse cx="76" cy="150" rx="11" ry="8" fill="#f5afa2" opacity="0.75"/>
+  <ellipse cx="180" cy="150" rx="11" ry="8" fill="#f5afa2" opacity="0.75"/>
 </svg>

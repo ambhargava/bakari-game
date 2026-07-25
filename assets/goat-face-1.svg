@@ -1,52 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Funny goat face option 1">
   <defs>
-    <radialGradient id="faceGrad1" cx="50%" cy="45%" r="60%">
+    <radialGradient id="fg1" cx="50%" cy="45%" r="60%">
       <stop offset="0%" stop-color="#fff5e6"/>
       <stop offset="100%" stop-color="#f2d3a3"/>
     </radialGradient>
   </defs>
-
   <rect width="256" height="256" fill="none"/>
 
-  <!-- Floppy side ears (drawn first, behind head) -->
-  <ellipse cx="36" cy="128" rx="22" ry="38" fill="#ead8be" stroke="#7b4f2a" stroke-width="5" transform="rotate(-15 36 128)"/>
-  <ellipse cx="220" cy="128" rx="22" ry="38" fill="#ead8be" stroke="#7b4f2a" stroke-width="5" transform="rotate(15 220 128)"/>
-  <ellipse cx="36" cy="128" rx="12" ry="24" fill="#f4a8a8" transform="rotate(-15 36 128)"/>
-  <ellipse cx="220" cy="128" rx="12" ry="24" fill="#f4a8a8" transform="rotate(15 220 128)"/>
+  <!-- Side ears (behind everything) -->
+  <ellipse cx="44" cy="118" rx="18" ry="28" fill="#ead8be" stroke="#7b4f2a" stroke-width="4"/>
+  <ellipse cx="212" cy="118" rx="18" ry="28" fill="#ead8be" stroke="#7b4f2a" stroke-width="4"/>
+  <ellipse cx="44" cy="118" rx="10" ry="17" fill="#f4a8a8"/>
+  <ellipse cx="212" cy="118" rx="10" ry="17" fill="#f4a8a8"/>
 
-  <!-- Head/face -->
-  <ellipse cx="128" cy="130" rx="84" ry="68" fill="url(#faceGrad1)" stroke="#7b4f2a" stroke-width="7"/>
+  <!-- Lyre-style curved horns — drawn before face so ellipse hides the bases -->
+  <path d="M 96 82 C 72 52, 50 18, 56 6 C 62 2, 76 14, 86 40 C 92 60, 106 76, 112 80 Z"
+        fill="#a07830" stroke="#6b5020" stroke-width="1.5"/>
+  <path d="M 160 82 C 184 52, 206 18, 200 6 C 194 2, 180 14, 170 40 C 164 60, 150 76, 144 80 Z"
+        fill="#a07830" stroke="#6b5020" stroke-width="1.5"/>
 
-  <!-- Curved Alpine-style horns growing from top of head -->
-  <!-- Left horn: outer edge sweeps up-left, inner edge returns -->
-  <path d="M95 72 C80 48, 60 26, 48 10 C60 6, 78 14, 90 32 C102 52, 108 70, 105 74 Z"
-        fill="#a07830" stroke="#6b5020" stroke-width="2"/>
-  <!-- Right horn: mirror -->
-  <path d="M161 72 C176 48, 196 26, 208 10 C196 6, 178 14, 166 32 C154 52, 148 70, 151 74 Z"
-        fill="#a07830" stroke="#6b5020" stroke-width="2"/>
+  <!-- Head (drawn after horns so it covers horn bases — horns appear to grow from skull) -->
+  <ellipse cx="128" cy="130" rx="80" ry="64" fill="url(#fg1)" stroke="#7b4f2a" stroke-width="7"/>
 
-  <!-- Eyes: happy round -->
-  <ellipse cx="100" cy="118" rx="13" ry="15" fill="#1f1a17"/>
-  <ellipse cx="158" cy="118" rx="13" ry="15" fill="#1f1a17"/>
-  <circle cx="96" cy="112" r="4" fill="#fff"/>
-  <circle cx="154" cy="112" r="4" fill="#fff"/>
+  <!-- Eyes: amber iris + horizontal slit pupil (the unmistakable goat marker) -->
+  <circle cx="100" cy="116" r="16" fill="#c8860a"/>
+  <rect x="87" y="113" width="26" height="7" rx="3" fill="#1a1208"/>
+  <circle cx="95" cy="110" r="4" fill="white" opacity="0.9"/>
 
-  <!-- Elongated narrow goat muzzle/snout -->
-  <ellipse cx="128" cy="162" rx="36" ry="27" fill="#ffe7cf" stroke="#7b4f2a" stroke-width="5"/>
+  <circle cx="156" cy="116" r="16" fill="#c8860a"/>
+  <rect x="143" y="113" width="26" height="7" rx="3" fill="#1a1208"/>
+  <circle cx="151" cy="110" r="4" fill="white" opacity="0.9"/>
+
+  <!-- Trapezoidal muzzle/snout (wide at top, rounds to narrower chin) -->
+  <path d="M 92 150 L 164 150 C 168 164, 166 182, 154 190 C 142 198, 114 198, 102 190 C 90 182, 88 164, 92 150 Z"
+        fill="#ffe7cf" stroke="#7b4f2a" stroke-width="5"/>
   <!-- Nostrils -->
-  <ellipse cx="116" cy="160" rx="6" ry="5" fill="#5a3a25"/>
-  <ellipse cx="140" cy="160" rx="6" ry="5" fill="#5a3a25"/>
+  <ellipse cx="112" cy="168" rx="9" ry="7" fill="#7b4f2a"/>
+  <ellipse cx="144" cy="168" rx="9" ry="7" fill="#7b4f2a"/>
 
-  <!-- Big happy smile -->
-  <path d="M104 178 C116 196, 140 196, 152 178" fill="none" stroke="#6b2f2f" stroke-width="7" stroke-linecap="round"/>
+  <!-- Happy smile -->
+  <path d="M 106 182 Q 128 200 150 182" fill="none" stroke="#6b2f2f" stroke-width="6" stroke-linecap="round"/>
   <!-- Tongue -->
-  <path d="M118 179 C125 193, 135 193, 142 179" fill="#ff7a7a" stroke="#6b2f2f" stroke-width="2"/>
+  <ellipse cx="128" cy="192" rx="9" ry="6" fill="#ff7a7a"/>
 
-  <!-- Small goatee hanging from chin -->
-  <path d="M118 196 C116 214, 122 226, 128 228 C134 226, 140 214, 138 196 Z"
+  <!-- Small goatee (teardrop shape below chin) -->
+  <path d="M 118 198 C 112 216, 118 234, 128 238 C 138 234, 144 216, 138 198 C 134 202, 122 202, 118 198 Z"
         fill="#d4b896" stroke="#7b4f2a" stroke-width="3"/>
 
-  <!-- Blush marks -->
-  <ellipse cx="76" cy="148" rx="12" ry="8" fill="#f7bdad" opacity="0.75"/>
-  <ellipse cx="180" cy="148" rx="12" ry="8" fill="#f7bdad" opacity="0.75"/>
+  <!-- Blush -->
+  <ellipse cx="76" cy="150" rx="12" ry="8" fill="#f7bdad" opacity="0.75"/>
+  <ellipse cx="180" cy="150" rx="12" ry="8" fill="#f7bdad" opacity="0.75"/>
 </svg>

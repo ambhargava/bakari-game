@@ -1,50 +1,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Funny goat face option 2">
   <defs>
-    <linearGradient id="faceGrad2" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="fg2" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#ffecc8"/>
       <stop offset="100%" stop-color="#efc88f"/>
     </linearGradient>
   </defs>
-
   <rect width="256" height="256" fill="none"/>
 
-  <!-- Short alert upright ears on sides (behind head) -->
-  <path d="M54 90 C50 68, 58 50, 72 52 C86 54, 92 74, 84 96 Z" fill="#fff0dc" stroke="#6e4424" stroke-width="5"/>
-  <path d="M202 90 C206 68, 198 50, 184 52 C170 54, 164 74, 172 96 Z" fill="#fff0dc" stroke="#6e4424" stroke-width="5"/>
-  <path d="M62 87 C60 70, 66 58, 74 60 C82 62, 84 78, 78 92 Z" fill="#f4a8a8"/>
-  <path d="M194 87 C196 70, 190 58, 182 60 C174 62, 172 78, 178 92 Z" fill="#f4a8a8"/>
+  <!-- Alert upright ears on sides -->
+  <path d="M 44 100 C 36 78, 44 54, 60 56 C 72 58, 78 80, 68 102 Z" fill="#fff0dc" stroke="#6e4424" stroke-width="4"/>
+  <path d="M 212 100 C 220 78, 212 54, 196 56 C 184 58, 178 80, 188 102 Z" fill="#fff0dc" stroke="#6e4424" stroke-width="4"/>
+  <path d="M 48 98 C 42 80, 48 62, 60 64 C 70 66, 74 82, 66 98 Z" fill="#f4a8a8"/>
+  <path d="M 208 98 C 214 80, 208 62, 196 64 C 186 66, 182 82, 190 98 Z" fill="#f4a8a8"/>
 
-  <!-- Head/face -->
-  <ellipse cx="128" cy="130" rx="84" ry="68" fill="url(#faceGrad2)" stroke="#6e4424" stroke-width="7"/>
+  <!-- Tall straight backward-angled horns — drawn before face, bases hidden under ellipse -->
+  <path d="M 94 84 L 78 4 L 112 84 Z" fill="#9a7028" stroke="#644810" stroke-width="1.5"/>
+  <path d="M 144 84 L 178 4 L 162 84 Z" fill="#9a7028" stroke="#644810" stroke-width="1.5"/>
 
-  <!-- Tall straight backward-angled horns (ibex style) -->
-  <!-- Left horn -->
-  <path d="M98 68 C94 46, 88 22, 84 6 C92 4, 102 24, 106 48 C110 66, 108 74, 104 76 Z"
-        fill="#9a7028" stroke="#644810" stroke-width="2"/>
-  <!-- Right horn -->
-  <path d="M158 68 C162 46, 168 22, 172 6 C164 4, 154 24, 150 48 C146 66, 148 74, 152 76 Z"
-        fill="#9a7028" stroke="#644810" stroke-width="2"/>
+  <!-- Head (covers horn bases so horns look skull-mounted) -->
+  <ellipse cx="128" cy="130" rx="80" ry="64" fill="url(#fg2)" stroke="#6e4424" stroke-width="7"/>
 
-  <!-- Wide surprised eyes -->
-  <circle cx="100" cy="118" r="16" fill="#1d1714"/>
-  <circle cx="158" cy="118" r="16" fill="#1d1714"/>
-  <circle cx="95" cy="112" r="5" fill="#fff"/>
-  <circle cx="153" cy="112" r="5" fill="#fff"/>
+  <!-- Wide surprised eyes: large amber iris + horizontal slit pupil -->
+  <circle cx="100" cy="116" r="18" fill="#c8860a"/>
+  <rect x="86" y="113" width="28" height="7" rx="3" fill="#1a1208"/>
+  <circle cx="95" cy="110" r="5" fill="white" opacity="0.9"/>
 
-  <!-- Elongated prominent goat muzzle/snout -->
-  <ellipse cx="128" cy="163" rx="40" ry="28" fill="#ffe6cd" stroke="#6e4424" stroke-width="5"/>
+  <circle cx="156" cy="116" r="18" fill="#c8860a"/>
+  <rect x="142" y="113" width="28" height="7" rx="3" fill="#1a1208"/>
+  <circle cx="151" cy="110" r="5" fill="white" opacity="0.9"/>
+
+  <!-- Prominent wide trapezoidal muzzle/snout -->
+  <path d="M 88 148 L 168 148 C 172 164, 170 184, 158 192 C 146 200, 110 200, 98 192 C 86 184, 84 164, 88 148 Z"
+        fill="#ffe6cd" stroke="#6e4424" stroke-width="5"/>
   <!-- Nostrils -->
-  <ellipse cx="114" cy="161" rx="6" ry="5" fill="#583823"/>
-  <ellipse cx="142" cy="161" rx="6" ry="5" fill="#583823"/>
+  <ellipse cx="110" cy="168" rx="9" ry="7" fill="#583823"/>
+  <ellipse cx="146" cy="168" rx="9" ry="7" fill="#583823"/>
 
-  <!-- Surprised O-shaped mouth -->
-  <ellipse cx="128" cy="179" rx="9" ry="11" fill="#4e2a2a"/>
+  <!-- Surprised O-mouth (open wide) -->
+  <ellipse cx="128" cy="184" rx="11" ry="14" fill="#4e2a2a"/>
+  <ellipse cx="128" cy="184" rx="7" ry="10" fill="#7a2020"/>
 
-  <!-- Long flowing beard hanging from chin -->
-  <path d="M110 196 C110 220, 116 240, 120 250 C124 256, 132 256, 136 250 C140 240, 146 220, 146 196 C140 210, 128 214, 116 210 Z"
+  <!-- Long flowing beard hanging well below chin -->
+  <path d="M 108 200 C 104 224, 110 248, 120 254 C 124 256, 132 256, 136 254 C 146 248, 152 224, 148 200 C 140 212, 128 216, 116 212 Z"
         fill="#d4b896" stroke="#6e4424" stroke-width="3"/>
 
-  <!-- Blush marks -->
-  <circle cx="80" cy="148" r="10" fill="#f7b8ae" opacity="0.75"/>
-  <circle cx="176" cy="148" r="10" fill="#f7b8ae" opacity="0.75"/>
+  <!-- Blush -->
+  <circle cx="78" cy="150" r="10" fill="#f7b8ae" opacity="0.75"/>
+  <circle cx="178" cy="150" r="10" fill="#f7b8ae" opacity="0.75"/>
 </svg>
