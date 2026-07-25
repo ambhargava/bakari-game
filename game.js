@@ -446,7 +446,7 @@ async function copyToClipboard(text) {
 }
 
 async function sharePuzzle() {
-  const emojiRow = '🟥  🐐🟥  ✕🟥';
+  const emojiRow = '🟥 🐐 ❎';
   const url = buildShareUrl();
 
   const lines = ['*Bakari Game*', '', emojiRow, ''];
