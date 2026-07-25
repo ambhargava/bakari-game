@@ -1,29 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Funny goat face option 2">
   <defs>
-    <linearGradient id="faceGrad2" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ffecc8"/>
-      <stop offset="100%" stop-color="#efc88f"/>
+    <linearGradient id="fg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff8e8"/>
+      <stop offset="100%" stop-color="#eed8a0"/>
     </linearGradient>
   </defs>
-
   <rect width="256" height="256" fill="none"/>
 
-  <ellipse cx="128" cy="138" rx="90" ry="76" fill="url(#faceGrad2)" stroke="#6e4424" stroke-width="8"/>
+  <!-- Alert upright pointed ears -->
+  <path d="M 44 102 C 34 76, 46 50, 66 60 C 80 68, 80 94, 64 108 Z"
+        fill="#f5e8c8" stroke="#1a1008" stroke-width="4"/>
+  <path d="M 212 102 C 222 76, 210 50, 190 60 C 176 68, 176 94, 192 108 Z"
+        fill="#f5e8c8" stroke="#1a1008" stroke-width="4"/>
+  <path d="M 52 100 C 44 78, 52 58, 66 66 C 76 72, 74 94, 64 104 Z" fill="#f4a8a8"/>
+  <path d="M 204 100 C 212 78, 204 58, 190 66 C 180 72, 182 94, 192 104 Z" fill="#f4a8a8"/>
 
-  <path d="M62 88 C44 74, 45 47, 67 35 C80 28, 96 34, 104 48 C111 63, 98 84, 82 96 Z" fill="#fff0dc" stroke="#6e4424" stroke-width="8"/>
-  <path d="M194 88 C212 74, 211 47, 189 35 C176 28, 160 34, 152 48 C145 63, 158 84, 174 96 Z" fill="#fff0dc" stroke="#6e4424" stroke-width="8"/>
+  <!-- Tall narrow upright horns (drawn before head) -->
+  <path d="M 112 84 C 106 60, 92 30, 80 6 C 76 2, 68 4, 72 12 C 82 36, 96 64, 100 84 Z"
+        fill="#b89050" stroke="#8a6830" stroke-width="2"/>
+  <path d="M 144 84 C 150 60, 164 30, 176 6 C 180 2, 188 4, 184 12 C 174 36, 160 64, 156 84 Z"
+        fill="#b89050" stroke="#8a6830" stroke-width="2"/>
 
-  <path d="M80 128 C92 114, 106 114, 116 128" fill="none" stroke="#34261f" stroke-width="8" stroke-linecap="round"/>
-  <circle cx="160" cy="130" r="13" fill="#1d1714"/>
-  <circle cx="155" cy="125" r="4" fill="#fff"/>
+  <!-- Head (covers horn bases) -->
+  <ellipse cx="128" cy="136" rx="80" ry="66" fill="url(#fg2)" stroke="#1a1008" stroke-width="7"/>
 
-  <ellipse cx="128" cy="167" rx="37" ry="25" fill="#ffe6cd" stroke="#6e4424" stroke-width="6"/>
-  <ellipse cx="116" cy="166" rx="6" ry="5" fill="#583823"/>
-  <ellipse cx="140" cy="166" rx="6" ry="5" fill="#583823"/>
+  <!-- Wide surprised eyes with slit pupils -->
+  <circle cx="100" cy="114" r="18" fill="#c8860a" stroke="#1a1008" stroke-width="3"/>
+  <rect x="86" y="111" width="28" height="7" rx="3" fill="#1a1208"/>
+  <circle cx="95" cy="107" r="5" fill="white" opacity="0.8"/>
 
-  <path d="M103 184 C114 202, 142 204, 154 184" fill="none" stroke="#4e2a2a" stroke-width="8" stroke-linecap="round"/>
-  <path d="M119 185 C127 200, 137 199, 145 185" fill="#ff6b8a" stroke="#4e2a2a" stroke-width="3"/>
+  <circle cx="156" cy="114" r="18" fill="#c8860a" stroke="#1a1008" stroke-width="3"/>
+  <rect x="142" y="111" width="28" height="7" rx="3" fill="#1a1208"/>
+  <circle cx="151" cy="107" r="5" fill="white" opacity="0.8"/>
 
-  <circle cx="87" cy="158" r="9" fill="#f7b8ae" opacity="0.8"/>
-  <circle cx="170" cy="158" r="9" fill="#f7b8ae" opacity="0.8"/>
+  <!-- Trapezoidal muzzle/snout -->
+  <path d="M 90 148 L 166 148 C 172 166, 170 188, 154 196 C 142 202, 114 202, 102 196 C 86 188, 84 166, 90 148 Z"
+        fill="#ffe8d0" stroke="#1a1008" stroke-width="5"/>
+  <!-- Nostrils -->
+  <ellipse cx="112" cy="169" rx="10" ry="7" fill="#5a3015"/>
+  <ellipse cx="144" cy="169" rx="10" ry="7" fill="#5a3015"/>
+
+  <!-- Surprised O-mouth -->
+  <ellipse cx="128" cy="187" rx="10" ry="12" fill="#2a1008"/>
+
+  <!-- Long flowing beard reaching canvas bottom -->
+  <path d="M 108 202 C 102 228, 110 252, 120 256 C 124 256, 132 256, 136 256 C 146 252, 154 228, 148 202 C 140 214, 116 214, 108 202 Z"
+        fill="#c8a060" stroke="#8a6830" stroke-width="3"/>
+
+  <!-- Blush -->
+  <circle cx="76" cy="148" r="11" fill="#f7b8ae" opacity="0.6"/>
+  <circle cx="180" cy="148" r="11" fill="#f7b8ae" opacity="0.6"/>
 </svg>
