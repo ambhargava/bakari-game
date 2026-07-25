@@ -13,7 +13,6 @@ const GOAT_FACE_OPTIONS = [
 const HELP_MODAL_SEEN_KEY = 'bakari_help_modal_seen_v1';
 
 const boardEl = document.getElementById('board');
-const statusEl = document.getElementById('status');
 const winBannerEl = document.getElementById('win-banner');
 const seedInputEl = document.getElementById('seed-input');
 const loadSeedBtnEl = document.getElementById('load-seed-btn');
@@ -257,9 +256,6 @@ function validateSolvedPuzzle() {
   return true;
 }
 
-function updateStatus(message) {
-  statusEl.textContent = message;
-}
 
 function formatElapsedTime(totalSeconds) {
   const hours = Math.floor(totalSeconds / 3600);
@@ -326,9 +322,6 @@ function onCellClick(row, col) {
     stopTimer();
     boardEl.classList.add('win');
     winBannerEl.classList.add('show');
-    updateStatus(`You solved ${DIFFICULTIES[puzzle.difficulty].label} seed ${puzzle.seed} in ${totalMoves} moves.`);
-  } else {
-    updateStatus(`${foundGoats}/${puzzle.size} goats found. ${totalMoves} moves.`);
   }
 }
 
@@ -422,14 +415,12 @@ function startPuzzle(seed, difficulty) {
   seedInputEl.value = seed;
   difficultyEl.value = difficulty;
   renderBoard();
-  updateStatus(`Find all ${puzzle.size} goats. Seed: ${seed}`);
 }
 
 function restartPuzzle() {
   resetState();
   startTimer();
   renderBoard();
-  updateStatus(`Restarted seed ${puzzle.seed}. ${foundGoats}/${puzzle.size} goats found. 0 moves.`);
 }
 
 function hideWinBanner() {
@@ -475,10 +466,9 @@ newPuzzleBtnEl.addEventListener('click', newPuzzle);
 restartBtnEl.addEventListener('click', restartPuzzle);
 hintBtnEl.addEventListener('click', () => {
   if (won) {
-    updateStatus(`Solved! Seed: ${puzzle.seed}`);
     return;
   }
-  updateStatus(hintText());
+  hintText();
   renderBoard();
 });
 hideWinBannerBtnEl.addEventListener('click', hideWinBanner);
