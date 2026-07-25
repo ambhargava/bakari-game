@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Funny goat face option 3">
+  <defs>
+    <radialGradient id="faceGrad3" cx="48%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#fff2d6"/>
+      <stop offset="100%" stop-color="#eac08a"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="256" height="256" fill="none"/>
+
+  <ellipse cx="128" cy="140" rx="88" ry="74" fill="url(#faceGrad3)" stroke="#704423" stroke-width="8"/>
+
+  <path d="M72 94 C56 80, 55 51, 77 39 C92 31, 107 40, 112 58 C116 74, 99 89, 84 100 Z" fill="#fdf0dc" stroke="#704423" stroke-width="8"/>
+  <path d="M184 94 C200 80, 201 51, 179 39 C164 31, 149 40, 144 58 C140 74, 157 89, 172 100 Z" fill="#fdf0dc" stroke="#704423" stroke-width="8"/>
+
+  <circle cx="97" cy="131" r="12" fill="#191511"/>
+  <path d="M146 130 C155 118, 170 117, 178 130" fill="none" stroke="#191511" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="93" cy="126" r="4" fill="#fff"/>
+
+  <ellipse cx="128" cy="167" rx="35" ry="24" fill="#ffe5cb" stroke="#704423" stroke-width="6"/>
+  <ellipse cx="116" cy="165" rx="6" ry="5" fill="#5e3b25"/>
+  <ellipse cx="140" cy="165" rx="6" ry="5" fill="#5e3b25"/>
+
+  <path d="M104 186 C116 200, 140 200, 152 186" fill="none" stroke="#5a2e2e" stroke-width="7" stroke-linecap="round"/>
+  <path d="M126 186 C132 198, 138 198, 143 186" fill="#ff7f96" stroke="#5a2e2e" stroke-width="3"/>
+
+  <ellipse cx="84" cy="156" rx="9" ry="7" fill="#f5afa2" opacity="0.8"/>
+  <ellipse cx="172" cy="156" rx="9" ry="7" fill="#f5afa2" opacity="0.8"/>
+</svg>

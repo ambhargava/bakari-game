@@ -5,6 +5,11 @@ const DIFFICULTIES = {
 };
 
 const GOAT_FACE = '🐐';
+const GOAT_FACE_OPTIONS = [
+  'assets/goat-face-1.svg',
+  'assets/goat-face-2.svg',
+  'assets/goat-face-3.svg'
+];
 const HELP_MODAL_SEEN_KEY = 'bakari_help_modal_seen_v1';
 
 const boardEl = document.getElementById('board');
@@ -25,6 +30,7 @@ let revealed = [];
 let foundGoats = 0;
 let won = false;
 let hintCellKey = null;
+let currentGoatFaceAsset = GOAT_FACE_OPTIONS[0];
 
 function xmur3(str) {
   let h = 1779033703 ^ str.length;
@@ -279,6 +285,23 @@ function onCellClick(row, col) {
   }
 }
 
+function createGoatFaceNode() {
+  if (!currentGoatFaceAsset) {
+    return null;
+  }
+
+  const img = document.createElement('img');
+  img.src = currentGoatFaceAsset;
+  img.alt = 'Goat face';
+  img.className = 'goat-face-img';
+  img.loading = 'eager';
+  img.decoding = 'sync';
+  img.onerror = () => {
+    img.remove();
+  };
+  return img;
+}
+
 function renderBoard() {
   boardEl.style.gridTemplateColumns = `repeat(${puzzle.size}, minmax(0, 1fr))`;
   boardEl.innerHTML = '';
@@ -299,7 +322,12 @@ function renderBoard() {
       if (isRevealed) {
         cell.classList.add('revealed');
         if (goat) {
-          cell.textContent = GOAT_FACE;
+          const goatFaceNode = createGoatFaceNode();
+          if (goatFaceNode) {
+            cell.appendChild(goatFaceNode);
+          } else {
+            cell.textContent = GOAT_FACE;
+          }
           cell.classList.add('hit');
           cell.setAttribute('aria-label', `Row ${row + 1} Column ${col + 1}, goat`);
         } else {
