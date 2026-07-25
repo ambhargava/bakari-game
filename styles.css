@@ -110,6 +110,17 @@ button:active {
   color: #fff;
 }
 
+.secondary-actions {
+  margin-top: 0.5rem;
+  grid-template-columns: 1fr;
+}
+
+.ghost-btn {
+  background: #f4f6ff;
+  border-color: var(--border);
+  color: #404a66;
+}
+
 .status {
   margin: 0.6rem 0 0;
   min-height: 1.2rem;
@@ -185,6 +196,66 @@ button:active {
 
 .board.win {
   animation: board-bounce 550ms ease;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.55);
+}
+
+.modal-content {
+  position: relative;
+  width: min(100%, 34rem);
+  max-height: min(85vh, 42rem);
+  overflow: auto;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #d0d9ef;
+  box-shadow: 0 22px 40px rgba(18, 26, 44, 0.25);
+  padding: 1rem 1rem 1.1rem;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 0.65rem;
+}
+
+.modal-content p,
+.modal-content li {
+  color: #26324f;
+  line-height: 1.45;
+}
+
+.modal-content ul {
+  margin-top: 0.4rem;
+  padding-left: 1.1rem;
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid #d8dfef;
+  background: #fff;
+  color: #4d5876;
+  font-weight: 700;
 }
 
 @keyframes pop {

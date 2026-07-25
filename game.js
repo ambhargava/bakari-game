@@ -4,6 +4,9 @@ const DIFFICULTIES = {
   hard: { label: 'Hard', size: 10 }
 };
 
+const GOAT_FACE = '🐐';
+const HELP_MODAL_SEEN_KEY = 'bakari_help_modal_seen_v1';
+
 const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('status');
 const winBannerEl = document.getElementById('win-banner');
@@ -13,6 +16,9 @@ const newPuzzleBtnEl = document.getElementById('new-puzzle-btn');
 const restartBtnEl = document.getElementById('restart-btn');
 const hintBtnEl = document.getElementById('hint-btn');
 const difficultyEl = document.getElementById('difficulty');
+const howToPlayBtnEl = document.getElementById('how-to-play-btn');
+const helpModalEl = document.getElementById('help-modal');
+const closeHelpBtnEl = document.getElementById('close-help-btn');
 
 let puzzle = null;
 let revealed = [];
@@ -186,7 +192,7 @@ function generatePuzzle(seed, difficulty) {
 
 function regionColor(regionId, total) {
   const hue = Math.round((regionId * 360) / total);
-  return `hsl(${hue} 70% 86%)`;
+  return `hsl(${hue} 62% 72%)`;
 }
 
 function resetState() {
@@ -293,7 +299,7 @@ function renderBoard() {
       if (isRevealed) {
         cell.classList.add('revealed');
         if (goat) {
-          cell.textContent = '🐐';
+          cell.textContent = GOAT_FACE;
           cell.classList.add('hit');
           cell.setAttribute('aria-label', `Row ${row + 1} Column ${col + 1}, goat`);
         } else {
@@ -338,6 +344,27 @@ function newPuzzle() {
   startPuzzle(randomSeed(), difficultyEl.value);
 }
 
+function openHelpModal() {
+  helpModalEl.hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeHelpModal() {
+  helpModalEl.hidden = true;
+  document.body.style.overflow = '';
+}
+
+function maybeShowFirstTimeHelpModal() {
+  try {
+    if (!localStorage.getItem(HELP_MODAL_SEEN_KEY)) {
+      openHelpModal();
+      localStorage.setItem(HELP_MODAL_SEEN_KEY, '1');
+    }
+  } catch {
+    openHelpModal();
+  }
+}
+
 difficultyEl.addEventListener('change', () => {
   startPuzzle(randomSeed(), difficultyEl.value);
 });
@@ -358,4 +385,18 @@ seedInputEl.addEventListener('keydown', (event) => {
   }
 });
 
+howToPlayBtnEl.addEventListener('click', openHelpModal);
+closeHelpBtnEl.addEventListener('click', closeHelpModal);
+helpModalEl.addEventListener('click', (event) => {
+  if (event.target && event.target.hasAttribute('data-close-modal')) {
+    closeHelpModal();
+  }
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !helpModalEl.hidden) {
+    closeHelpModal();
+  }
+});
+
 startPuzzle(randomSeed(), 'medium');
+maybeShowFirstTimeHelpModal();

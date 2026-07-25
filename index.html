@@ -35,6 +35,10 @@
           <button id="hint-btn" type="button">Hint</button>
         </div>
 
+        <div class="button-row secondary-actions">
+          <button id="how-to-play-btn" type="button" class="ghost-btn">How to Play</button>
+        </div>
+
         <p id="status" class="status" aria-live="polite"></p>
       </section>
 
@@ -43,6 +47,32 @@
         <div id="win-banner" class="win-banner" aria-live="polite">🎉 You found all goats! 🎉</div>
       </section>
     </main>
+
+    <div id="help-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+      <div class="modal-backdrop" data-close-modal></div>
+      <div class="modal-content" role="document">
+        <button id="close-help-btn" class="modal-close" type="button" aria-label="Close help dialog">✕</button>
+        <h2 id="help-title">How to Play Bakari</h2>
+
+        <p><strong>Goal:</strong> Reveal all hidden goat faces.</p>
+
+        <p><strong>How to play:</strong></p>
+        <ul>
+          <li>Tap or click any cell to reveal it.</li>
+          <li>If there is a goat, you will see a goat face.</li>
+          <li>If not, you will see an ✕ mark.</li>
+          <li>Use <em>Hint</em> for one deterministic clue.</li>
+        </ul>
+
+        <p><strong>Rules:</strong></p>
+        <ul>
+          <li>Exactly one goat in each row.</li>
+          <li>Exactly one goat in each column.</li>
+          <li>Exactly one goat in each colored region.</li>
+          <li>Goats are never adjacent, including diagonally.</li>
+        </ul>
+      </div>
+    </div>
 
     <script src="game.js"></script>
   </body>
