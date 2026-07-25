@@ -29,7 +29,8 @@ Every generated puzzle follows these rules:
 - New Puzzle button (new random seed)
 - Restart button (same puzzle/seed, clears reveals)
 - Hint button (deterministic single clue for one unrevealed goat)
-- Win message and lightweight completion animation
+- Right-aligned live stats for goats found, moves, and elapsed time (`h:mm:ss`)
+- Win message with lightweight completion animation and a Hide button
 - Responsive mobile-first touch-friendly UI
 
 ## Seed behavior

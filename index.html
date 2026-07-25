@@ -39,15 +39,23 @@
           <button id="how-to-play-btn" type="button" class="ghost-btn">How to Play</button>
         </div>
 
+        <div class="stats-row" aria-live="polite">
+          <span id="stats-goats">Goats: 0/0</span>
+          <span id="stats-moves">Moves: 0</span>
+          <span id="stats-time">Time: 0:00:00</span>
+        </div>
         <p id="status" class="status" aria-live="polite"></p>
       </section>
 
       <section class="board-wrap">
         <div id="board" class="board" role="grid" aria-label="Bakari puzzle board"></div>
-        <div id="win-banner" class="win-banner" aria-live="polite">🎉 You found all goats! 🎉</div>
+        <div id="win-banner" class="win-banner" aria-live="polite">
+          <span>🎉 You found all goats! 🎉</span>
+          <button id="hide-win-banner-btn" class="win-banner-hide-btn" type="button">Hide</button>
+        </div>
       </section>
     </main>
-    <p class="app-version" aria-label="App version">v0.1</p>
+    <p class="app-version" aria-label="App version">v0.2</p>
 
     <div id="help-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
       <div class="modal-backdrop" data-close-modal></div>

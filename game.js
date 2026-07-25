@@ -22,6 +22,10 @@ const restartBtnEl = document.getElementById('restart-btn');
 const hintBtnEl = document.getElementById('hint-btn');
 const difficultyEl = document.getElementById('difficulty');
 const howToPlayBtnEl = document.getElementById('how-to-play-btn');
+const statsGoatsEl = document.getElementById('stats-goats');
+const statsMovesEl = document.getElementById('stats-moves');
+const statsTimeEl = document.getElementById('stats-time');
+const hideWinBannerBtnEl = document.getElementById('hide-win-banner-btn');
 const helpModalEl = document.getElementById('help-modal');
 const closeHelpBtnEl = document.getElementById('close-help-btn');
 
@@ -32,6 +36,8 @@ let totalMoves = 0;
 let won = false;
 let hintCellKey = null;
 let currentGoatFaceAsset = GOAT_FACE_OPTIONS[0];
+let elapsedSeconds = 0;
+let timerIntervalId = null;
 
 function xmur3(str) {
   let h = 1779033703 ^ str.length;
@@ -203,13 +209,16 @@ function regionColor(regionId, total) {
 }
 
 function resetState() {
+  stopTimer();
   revealed = Array.from({ length: puzzle.size }, () => Array(puzzle.size).fill(false));
   foundGoats = 0;
   totalMoves = 0;
   won = false;
   hintCellKey = null;
+  elapsedSeconds = 0;
   boardEl.classList.remove('win');
   winBannerEl.classList.remove('show');
+  renderStats();
 }
 
 function isGoat(row, col) {
@@ -252,6 +261,39 @@ function updateStatus(message) {
   statusEl.textContent = message;
 }
 
+function formatElapsedTime(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function renderStats() {
+  const goatCount = puzzle ? `${foundGoats}/${puzzle.size}` : '0/0';
+  statsGoatsEl.textContent = `Goats: ${goatCount}`;
+  statsMovesEl.textContent = `Moves: ${totalMoves}`;
+  statsTimeEl.textContent = `Time: ${formatElapsedTime(elapsedSeconds)}`;
+}
+
+function stopTimer() {
+  if (timerIntervalId !== null) {
+    window.clearInterval(timerIntervalId);
+    timerIntervalId = null;
+  }
+}
+
+function startTimer() {
+  stopTimer();
+  timerIntervalId = window.setInterval(() => {
+    if (won) {
+      stopTimer();
+      return;
+    }
+    elapsedSeconds += 1;
+    renderStats();
+  }, 1000);
+}
+
 function hintText() {
   for (let row = 0; row < puzzle.size; row += 1) {
     const col = puzzle.goats[row];
@@ -276,10 +318,12 @@ function onCellClick(row, col) {
     foundGoats += 1;
   }
 
+  renderStats();
   renderBoard();
 
   if (foundGoats === puzzle.size && validateSolvedPuzzle()) {
     won = true;
+    stopTimer();
     boardEl.classList.add('win');
     winBannerEl.classList.add('show');
     updateStatus(`You solved ${DIFFICULTIES[puzzle.difficulty].label} seed ${puzzle.seed} in ${totalMoves} moves.`);
@@ -374,6 +418,7 @@ function renderBoard() {
 function startPuzzle(seed, difficulty) {
   puzzle = generatePuzzle(seed, difficulty);
   resetState();
+  startTimer();
   seedInputEl.value = seed;
   difficultyEl.value = difficulty;
   renderBoard();
@@ -382,8 +427,13 @@ function startPuzzle(seed, difficulty) {
 
 function restartPuzzle() {
   resetState();
+  startTimer();
   renderBoard();
   updateStatus(`Restarted seed ${puzzle.seed}. ${foundGoats}/${puzzle.size} goats found. 0 moves.`);
+}
+
+function hideWinBanner() {
+  winBannerEl.classList.remove('show');
 }
 
 function loadSeedPuzzle() {
@@ -431,6 +481,7 @@ hintBtnEl.addEventListener('click', () => {
   updateStatus(hintText());
   renderBoard();
 });
+hideWinBannerBtnEl.addEventListener('click', hideWinBanner);
 seedInputEl.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
     loadSeedPuzzle();
