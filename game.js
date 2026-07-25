@@ -302,8 +302,29 @@ function createGoatFaceNode() {
   return img;
 }
 
+function updateBoardTileSize() {
+  const wrapEl = boardEl.parentElement;
+  if (!wrapEl) {
+    return;
+  }
+
+  const boardStyles = getComputedStyle(boardEl);
+  const gap = parseFloat(boardStyles.columnGap) || 0;
+  const paddingLeft = parseFloat(boardStyles.paddingLeft) || 0;
+  const paddingRight = parseFloat(boardStyles.paddingRight) || 0;
+  const availableWidth = wrapEl.clientWidth - paddingLeft - paddingRight - gap * (puzzle.size - 1);
+  const tileSize = Math.max(1, Math.floor(availableWidth / puzzle.size));
+
+  boardEl.style.setProperty('--cell-size', `${tileSize}px`);
+}
+
 function renderBoard() {
-  boardEl.style.gridTemplateColumns = `repeat(${puzzle.size}, minmax(0, 1fr))`;
+  if (!puzzle) {
+    return;
+  }
+
+  updateBoardTileSize();
+  boardEl.style.gridTemplateColumns = `repeat(${puzzle.size}, var(--cell-size))`;
   boardEl.innerHTML = '';
 
   for (let row = 0; row < puzzle.size; row += 1) {
@@ -425,6 +446,7 @@ document.addEventListener('keydown', (event) => {
     closeHelpModal();
   }
 });
+window.addEventListener('resize', renderBoard);
 
 startPuzzle(randomSeed(), 'medium');
 maybeShowFirstTimeHelpModal();
