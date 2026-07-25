@@ -51,8 +51,7 @@ h1 {
   box-shadow: 0 10px 22px rgba(31, 42, 68, 0.08);
 }
 
-.difficulty-row,
-.seed-row {
+.difficulty-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -112,7 +111,7 @@ button:active {
 
 .secondary-actions {
   margin-top: 0.5rem;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
 }
 
 .ghost-btn {

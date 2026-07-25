@@ -14,13 +14,12 @@ const HELP_MODAL_SEEN_KEY = 'bakari_help_modal_seen_v1';
 
 const boardEl = document.getElementById('board');
 const winBannerEl = document.getElementById('win-banner');
-const seedInputEl = document.getElementById('seed-input');
-const loadSeedBtnEl = document.getElementById('load-seed-btn');
 const newPuzzleBtnEl = document.getElementById('new-puzzle-btn');
 const restartBtnEl = document.getElementById('restart-btn');
 const hintBtnEl = document.getElementById('hint-btn');
 const difficultyEl = document.getElementById('difficulty');
 const howToPlayBtnEl = document.getElementById('how-to-play-btn');
+const shareBtnEl = document.getElementById('share-btn');
 const statsGoatsEl = document.getElementById('stats-goats');
 const statsMovesEl = document.getElementById('stats-moves');
 const statsTimeEl = document.getElementById('stats-time');
@@ -412,7 +411,6 @@ function startPuzzle(seed, difficulty) {
   puzzle = generatePuzzle(seed, difficulty);
   resetState();
   startTimer();
-  seedInputEl.value = seed;
   difficultyEl.value = difficulty;
   renderBoard();
 }
@@ -427,10 +425,58 @@ function hideWinBanner() {
   winBannerEl.classList.remove('show');
 }
 
-function loadSeedPuzzle() {
-  const rawSeed = seedInputEl.value.trim();
-  const seed = rawSeed || randomSeed();
-  startPuzzle(seed, difficultyEl.value);
+function buildShareUrl() {
+  const base = window.location.origin + window.location.pathname;
+  return `${base}?seed=${encodeURIComponent(puzzle.seed)}&difficulty=${encodeURIComponent(puzzle.difficulty)}`;
+}
+
+async function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
+
+async function sharePuzzle() {
+  const emojiRow = '🟥  🐐🟥  ✕🟥';
+  const url = buildShareUrl();
+
+  const lines = ['*Bakari Game*', '', emojiRow, ''];
+  if (won) {
+    lines.push(`Moves: ${totalMoves}  Time: ${formatElapsedTime(elapsedSeconds)}`, '');
+  }
+  lines.push(url);
+
+  const shareText = lines.join('\n');
+
+  try {
+    await copyToClipboard(shareText);
+    const original = shareBtnEl.textContent;
+    shareBtnEl.textContent = 'Copied!';
+    setTimeout(() => {
+      shareBtnEl.textContent = original;
+    }, 2000);
+  } catch {
+    shareBtnEl.textContent = 'Copy failed';
+    setTimeout(() => {
+      shareBtnEl.textContent = 'Share';
+    }, 2000);
+  }
+}
+
+function getSeedFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const seed = params.get('seed');
+  const difficulty = params.get('difficulty');
+  return seed ? { seed, difficulty: difficulty || 'medium' } : null;
 }
 
 function newPuzzle() {
@@ -461,7 +507,6 @@ function maybeShowFirstTimeHelpModal() {
 difficultyEl.addEventListener('change', () => {
   startPuzzle(randomSeed(), difficultyEl.value);
 });
-loadSeedBtnEl.addEventListener('click', loadSeedPuzzle);
 newPuzzleBtnEl.addEventListener('click', newPuzzle);
 restartBtnEl.addEventListener('click', restartPuzzle);
 hintBtnEl.addEventListener('click', () => {
@@ -472,11 +517,7 @@ hintBtnEl.addEventListener('click', () => {
   renderBoard();
 });
 hideWinBannerBtnEl.addEventListener('click', hideWinBanner);
-seedInputEl.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') {
-    loadSeedPuzzle();
-  }
-});
+shareBtnEl.addEventListener('click', sharePuzzle);
 
 howToPlayBtnEl.addEventListener('click', openHelpModal);
 closeHelpBtnEl.addEventListener('click', closeHelpModal);
@@ -492,5 +533,10 @@ document.addEventListener('keydown', (event) => {
 });
 window.addEventListener('resize', renderBoard);
 
-startPuzzle(randomSeed(), 'medium');
+const urlPuzzle = getSeedFromUrl();
+if (urlPuzzle) {
+  startPuzzle(urlPuzzle.seed, urlPuzzle.difficulty);
+} else {
+  startPuzzle(randomSeed(), 'medium');
+}
 maybeShowFirstTimeHelpModal();
