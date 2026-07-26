@@ -36,6 +36,7 @@ let hintCellKey = null;
 let currentGoatFaceAsset = GOAT_FACE_OPTIONS[0];
 let elapsedSeconds = 0;
 let timerIntervalId = null;
+let timerStarted = false;
 
 function xmur3(str) {
   let h = 1779033703 ^ str.length;
@@ -214,6 +215,7 @@ function resetState() {
   won = false;
   hintCellKey = null;
   elapsedSeconds = 0;
+  timerStarted = false;
   boardEl.classList.remove('win');
   winBannerEl.classList.remove('show');
   renderStats();
@@ -303,6 +305,11 @@ function hintText() {
 function onCellClick(row, col) {
   if (won || revealed[row][col]) {
     return;
+  }
+
+  if (!timerStarted) {
+    timerStarted = true;
+    startTimer();
   }
 
   revealed[row][col] = true;
@@ -410,14 +417,12 @@ function renderBoard() {
 function startPuzzle(seed, difficulty) {
   puzzle = generatePuzzle(seed, difficulty);
   resetState();
-  startTimer();
   difficultyEl.value = difficulty;
   renderBoard();
 }
 
 function restartPuzzle() {
   resetState();
-  startTimer();
   renderBoard();
 }
 
