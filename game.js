@@ -36,7 +36,6 @@ let hintCellKey = null;
 let currentGoatFaceAsset = GOAT_FACE_OPTIONS[0];
 let elapsedSeconds = 0;
 let timerIntervalId = null;
-let timerStarted = false;
 
 function xmur3(str) {
   let h = 1779033703 ^ str.length;
@@ -215,7 +214,6 @@ function resetState() {
   won = false;
   hintCellKey = null;
   elapsedSeconds = 0;
-  timerStarted = false;
   boardEl.classList.remove('win');
   winBannerEl.classList.remove('show');
   renderStats();
@@ -307,8 +305,7 @@ function onCellClick(row, col) {
     return;
   }
 
-  if (!timerStarted) {
-    timerStarted = true;
+  if (timerIntervalId === null) {
     startTimer();
   }
 
