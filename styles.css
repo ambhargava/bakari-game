@@ -150,7 +150,7 @@ button:active {
 }
 
 .cell {
-  border: 0;
+  border: 1px solid rgba(0, 0, 0, 0.55);
   border-radius: 9px;
   width: var(--cell-size);
   height: var(--cell-size);
