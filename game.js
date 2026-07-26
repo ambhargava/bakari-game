@@ -305,6 +305,10 @@ function onCellClick(row, col) {
     return;
   }
 
+  if (totalMoves === 0) {
+    startTimer();
+  }
+
   revealed[row][col] = true;
   totalMoves += 1;
   hintCellKey = null;
@@ -410,14 +414,12 @@ function renderBoard() {
 function startPuzzle(seed, difficulty) {
   puzzle = generatePuzzle(seed, difficulty);
   resetState();
-  startTimer();
   difficultyEl.value = difficulty;
   renderBoard();
 }
 
 function restartPuzzle() {
   resetState();
-  startTimer();
   renderBoard();
 }
 
