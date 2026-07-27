@@ -838,6 +838,7 @@ function mpRenderLobbyHost() {
   // canvas on mobile Chrome (avoids 0×0 canvas / hidden-element sizing issues).
   const qrContainer = document.getElementById('mp-qr-container');
   if (qrContainer) {
+    qrContainer.innerHTML = '<p class="mp-qr-loading">Generating QR…</p>';
     if (window.QRCode && typeof QRCode.toDataURL === 'function') {
       QRCode.toDataURL(joinUrl, { width: 200, margin: 2 }, (err, dataUrl) => {
         if (!err && dataUrl) {

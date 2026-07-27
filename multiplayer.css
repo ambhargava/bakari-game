@@ -198,7 +198,8 @@
   height: 200px;
 }
 
-.mp-qr-fallback {
+.mp-qr-fallback,
+.mp-qr-loading {
   text-align: center;
   font-size: 0.82rem;
   color: var(--muted);
