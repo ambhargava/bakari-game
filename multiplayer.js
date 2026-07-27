@@ -784,6 +784,10 @@ function mpRenderLobbyLoading() {
   mpShowModal();
 }
 
+function mpQrShowFallback(container) {
+  container.innerHTML = '<p class="mp-qr-fallback">QR code unavailable.<br>Use the link below to join.</p>';
+}
+
 function mpRenderLobbyHost() {
   if (!mpSession) return;
 
@@ -808,7 +812,7 @@ function mpRenderLobbyHost() {
     </p>
 
     <div class="mp-qr-wrap">
-      <canvas id="mp-qr-canvas"></canvas>
+      <div id="mp-qr-container" class="mp-qr-container"></div>
       <div class="mp-join-url">
         <input id="mp-url-input" type="text" readonly value="${mpEscape(joinUrl)}" />
         <button id="mp-copy-btn" class="mp-copy-btn">Copy link</button>
@@ -830,12 +834,27 @@ function mpRenderLobbyHost() {
 
   mpShowModal();
 
-  // Generate QR code using qrcode library
-  const canvas = document.getElementById('mp-qr-canvas');
-  if (canvas && window.QRCode) {
-    QRCode.toCanvas(canvas, joinUrl, { width: 200, margin: 2 }, (err) => {
-      if (err) console.warn('[MP] QR generation error', err);
-    });
+  // Generate QR code as a data URL and render into an <img> — more reliable than
+  // canvas on mobile Chrome (avoids 0×0 canvas / hidden-element sizing issues).
+  const qrContainer = document.getElementById('mp-qr-container');
+  if (qrContainer) {
+    if (window.QRCode && typeof QRCode.toDataURL === 'function') {
+      QRCode.toDataURL(joinUrl, { width: 200, margin: 2 }, (err, dataUrl) => {
+        if (!err && dataUrl) {
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          img.alt = 'Scan to join';
+          img.className = 'mp-qr-img';
+          qrContainer.innerHTML = '';
+          qrContainer.appendChild(img);
+        } else {
+          console.warn('[MP] QR toDataURL error', err);
+          mpQrShowFallback(qrContainer);
+        }
+      });
+    } else {
+      mpQrShowFallback(qrContainer);
+    }
   }
 
   document.getElementById('mp-copy-btn').addEventListener('click', async () => {
