@@ -182,9 +182,33 @@
   margin: 0.75rem 0;
 }
 
-#mp-qr-canvas {
+.mp-qr-container {
+  min-width: 200px;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mp-qr-img {
   border-radius: 8px;
   border: 1px solid var(--border);
+  display: block;
+  width: 200px;
+  height: 200px;
+}
+
+.mp-qr-fallback,
+.mp-qr-loading {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  width: 200px;
+  box-sizing: border-box;
+  margin: 0;
 }
 
 .mp-join-url {
