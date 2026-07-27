@@ -43,7 +43,11 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MP_PEER_PREFIX = 'bakari-';
-const MP_VERSION = 1;
+const MP_VERSION = 2;
+const MP_QR_SIZE = 200;
+const MP_PEER_OPEN_TIMEOUT_MS = 12000;
+const MP_CONN_OPEN_TIMEOUT_MS = 12000;
+const MP_WELCOME_TIMEOUT_MS = 12000;
 
 const MP_COLORS = [
   '#e74c3c', // red
@@ -86,6 +90,11 @@ const mpConnections = {};
 
 // Guest side: single DataConnection to host
 let mpHostConn = null;
+let mpHostCreateTimer = null;
+let mpGuestPeerOpenTimer = null;
+let mpGuestConnOpenTimer = null;
+let mpGuestWelcomeTimer = null;
+let mpQrLoaderPromise = null;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -109,6 +118,167 @@ function mpGetJoinParam() {
 
 function mpMakePlayer(id, name, color, icon, isHost) {
   return { id, name, color, icon, score: 0, totalMoves: 0, isConnected: true, isHost };
+}
+
+function mpGetPeerCtor() {
+  if (typeof window.Peer === 'function') return window.Peer;
+  if (window.peerjs && typeof window.peerjs.Peer === 'function') return window.peerjs.Peer;
+  return null;
+}
+
+function mpGetQrCodeApi() {
+  const candidates = [
+    window.QRCode,
+    window.qrcode,
+    window.QRCode && window.QRCode.default,
+    window.qrcode && window.qrcode.default,
+  ];
+
+  return candidates.find((candidate) => candidate
+    && (typeof candidate.toDataURL === 'function' || typeof candidate.toCanvas === 'function')) || null;
+}
+
+function mpLoadScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Could not load ' + src));
+    document.head.appendChild(script);
+  });
+}
+
+function mpEnsureQrCodeApi() {
+  const qrApi = mpGetQrCodeApi();
+  if (qrApi) return Promise.resolve(qrApi);
+  if (mpQrLoaderPromise) return mpQrLoaderPromise;
+
+  const fallbackSources = [
+    'https://unpkg.com/qrcode@1.5.4/build/qrcode.min.js',
+  ];
+
+  mpQrLoaderPromise = new Promise((resolve, reject) => {
+    let idx = 0;
+    const tryNext = () => {
+      if (idx >= fallbackSources.length) {
+        reject(new Error('QR library unavailable'));
+        return;
+      }
+      const src = fallbackSources[idx];
+      idx += 1;
+      mpLoadScript(src)
+        .then(() => {
+          const loadedApi = mpGetQrCodeApi();
+          if (loadedApi) resolve(loadedApi);
+          else tryNext();
+        })
+        .catch(() => tryNext());
+    };
+    tryNext();
+  }).finally(() => {
+    mpQrLoaderPromise = null;
+  });
+
+  return mpQrLoaderPromise;
+}
+
+function mpQrToDataUrl(qrApi, text) {
+  const options = { width: MP_QR_SIZE, margin: 2 };
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (err, dataUrl) => {
+      if (settled) return;
+      settled = true;
+      if (err) {
+        reject(err);
+      } else if (!dataUrl) {
+        reject(new Error('QR code generation returned an empty image.'));
+      } else {
+        resolve(dataUrl);
+      }
+    };
+
+    try {
+      if (typeof qrApi.toDataURL === 'function') {
+        const maybePromise = qrApi.toDataURL(text, options, finish);
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          maybePromise.then((dataUrl) => finish(null, dataUrl)).catch((err) => finish(err));
+        }
+        return;
+      }
+
+      if (typeof qrApi.toCanvas === 'function') {
+        const canvas = document.createElement('canvas');
+        const finishCanvas = (err) => {
+          if (err) {
+            finish(err);
+            return;
+          }
+          try {
+            finish(null, canvas.toDataURL('image/png'));
+          } catch (canvasErr) {
+            finish(canvasErr);
+          }
+        };
+        const maybePromise = qrApi.toCanvas(canvas, text, options, finishCanvas);
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          maybePromise.then(() => finishCanvas(null)).catch((err) => finishCanvas(err));
+        }
+        return;
+      }
+
+      finish(new Error('Unsupported QRCode export shape.'));
+    } catch (err) {
+      finish(err);
+    }
+  });
+}
+
+function mpRenderQrImage(container, dataUrl) {
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.alt = 'Scan to join';
+  img.className = 'mp-qr-img';
+  container.innerHTML = '';
+  container.appendChild(img);
+}
+
+function mpClearConnectionTimers() {
+  clearTimeout(mpHostCreateTimer);
+  clearTimeout(mpGuestPeerOpenTimer);
+  clearTimeout(mpGuestConnOpenTimer);
+  clearTimeout(mpGuestWelcomeTimer);
+  mpHostCreateTimer = null;
+  mpGuestPeerOpenTimer = null;
+  mpGuestConnOpenTimer = null;
+  mpGuestWelcomeTimer = null;
+}
+
+function mpResetState(options = {}) {
+  const { keepModal = false } = options;
+  mpClearConnectionTimers();
+
+  if (mpPeer) {
+    mpPeer.destroy();
+    mpPeer = null;
+  }
+  Object.keys(mpConnections).forEach((k) => delete mpConnections[k]);
+  mpHostConn = null;
+  mpSession = null;
+
+  document.body.classList.remove('mp-active');
+  if (!keepModal) mpHideModal();
+  mpHideInGameBar();
+
+  const url = new URL(window.location.href);
+  url.searchParams.delete('join');
+  window.history.replaceState({}, '', url.toString());
+}
+
+function mpFailAndReset(msg) {
+  mpShowError(msg);
+  mpResetState({ keepModal: true });
 }
 
 // ─── Messaging helpers ────────────────────────────────────────────────────────
@@ -149,9 +319,22 @@ function mpHostCreate(profile) {
     waitingForMoveConfirm: false,
   };
 
-  mpPeer = new Peer(peerId);
+  const PeerCtor = mpGetPeerCtor();
+  if (!PeerCtor) {
+    mpShowError('Multiplayer could not start because PeerJS failed to load. Refresh and try again.');
+    return;
+  }
+
+  mpPeer = new PeerCtor(peerId);
+  mpHostCreateTimer = setTimeout(() => {
+    if (mpPeer && mpSession && mpSession.status === 'lobby' && mpSession.myId === peerId) {
+      mpFailAndReset('Could not create the multiplayer match. Check your connection and try again.');
+    }
+  }, MP_PEER_OPEN_TIMEOUT_MS);
 
   mpPeer.on('open', (id) => {
+    clearTimeout(mpHostCreateTimer);
+    mpHostCreateTimer = null;
     mpSession.myId = id;
     mpSession.myProfile.id = id;
     mpSession.players[0].id = id;
@@ -161,6 +344,8 @@ function mpHostCreate(profile) {
   mpPeer.on('connection', mpHostOnConnection);
 
   mpPeer.on('error', (err) => {
+    clearTimeout(mpHostCreateTimer);
+    mpHostCreateTimer = null;
     console.error('[MP] peer error', err);
     if (err.type === 'unavailable-id') {
       // Retry with a new code
@@ -168,7 +353,7 @@ function mpHostCreate(profile) {
       mpHostCreate(profile);
       return;
     }
-    mpShowError('Connection error: ' + (err.message || err.type));
+    mpFailAndReset('Connection error: ' + (err.message || err.type));
   });
 
   // Show loading state
@@ -180,15 +365,25 @@ function mpHostOnConnection(conn) {
   const peerId = conn.peer;
   mpConnections[peerId] = conn;
 
-  conn.on('open', () => {
-    // Send current lobby state to the new connection
+  const sendLobbyState = () => {
+    if (!mpSession) return;
+
+    if (conn.metadata && conn.metadata.name) {
+      mpHostHandleJoin(peerId, conn.metadata);
+      return;
+    }
+
     mpSend(conn, {
       type: 'welcome',
+      version: MP_VERSION,
       myPlayerId: peerId,
       players: mpSession.players,
       status: mpSession.status,
     });
-  });
+  };
+
+  conn.on('open', sendLobbyState);
+  if (conn.open) sendLobbyState();
 
   conn.on('data', (data) => mpHostOnData(peerId, data));
 
@@ -244,9 +439,21 @@ function mpHostOnData(peerId, data) {
 }
 
 function mpHostHandleJoin(peerId, data) {
+  const conn = mpConnections[peerId];
+  const guestVersion = Number(data && data.version);
+  if (guestVersion !== MP_VERSION) {
+    if (conn) {
+      mpSend(conn, {
+        type: 'join_rejected',
+        reason: 'Host and guest are running different Bakari versions. Refresh both devices and try again.',
+      });
+      conn.close();
+    }
+    return;
+  }
+
   // Reject if game already started
   if (mpSession.status !== 'lobby') {
-    const conn = mpConnections[peerId];
     if (conn) {
       mpSend(conn, { type: 'join_rejected', reason: 'Game already in progress' });
     }
@@ -254,8 +461,9 @@ function mpHostHandleJoin(peerId, data) {
   }
 
   const player = mpMakePlayer(peerId, data.name, data.color, data.icon, false);
+  const alreadyJoined = !!(conn && conn.__bakariJoined);
+  if (conn) conn.__bakariJoined = true;
 
-  // Remove placeholder (from welcome) and add proper player entry
   const existing = mpSession.players.findIndex((p) => p.id === peerId);
   if (existing >= 0) {
     mpSession.players[existing] = player;
@@ -264,18 +472,20 @@ function mpHostHandleJoin(peerId, data) {
   }
 
   // Inform the joining guest about their identity + full player list
-  const conn = mpConnections[peerId];
   mpSend(conn, {
     type: 'welcome',
+    version: MP_VERSION,
     myPlayerId: peerId,
     players: mpSession.players,
     status: mpSession.status,
   });
 
   // Inform all other guests that someone joined
-  Object.entries(mpConnections).forEach(([pid, c]) => {
-    if (pid !== peerId) mpSend(c, { type: 'player_joined', player });
-  });
+  if (!alreadyJoined) {
+    Object.entries(mpConnections).forEach(([pid, c]) => {
+      if (pid !== peerId) mpSend(c, { type: 'player_joined', player });
+    });
+  }
 
   mpRenderLobbyHost();
 }
@@ -428,9 +638,23 @@ function mpAdvanceTurn() {
 // ─── Guest: join session ──────────────────────────────────────────────────────
 
 function mpGuestConnect(hostPeerId, profile) {
-  mpPeer = new Peer();
+  const PeerCtor = mpGetPeerCtor();
+  if (!PeerCtor) {
+    mpShowError('Multiplayer could not start because PeerJS failed to load. Refresh and try again.');
+    return;
+  }
+
+  mpClearConnectionTimers();
+  mpPeer = new PeerCtor();
+  mpGuestPeerOpenTimer = setTimeout(() => {
+    if (mpPeer && !mpSession) {
+      mpFailAndReset('Could not reach the multiplayer network. Check your connection and try again.');
+    }
+  }, MP_PEER_OPEN_TIMEOUT_MS);
 
   mpPeer.on('open', (myPeerId) => {
+    clearTimeout(mpGuestPeerOpenTimer);
+    mpGuestPeerOpenTimer = null;
     mpSession = {
       mode: 'guest',
       myId: myPeerId,
@@ -443,28 +667,57 @@ function mpGuestConnect(hostPeerId, profile) {
       waitingForMoveConfirm: false,
     };
 
-    mpHostConn = mpPeer.connect(hostPeerId, { reliable: true });
+    mpHostConn = mpPeer.connect(hostPeerId, {
+      reliable: true,
+      metadata: {
+        version: MP_VERSION,
+        name: profile.name,
+        color: profile.color,
+        icon: profile.icon,
+      },
+    });
+    mpGuestConnOpenTimer = setTimeout(() => {
+      if (mpHostConn && !mpHostConn.open) {
+        mpFailAndReset('Could not open a connection to the host. Make sure the host lobby is still open and try again.');
+      }
+    }, MP_CONN_OPEN_TIMEOUT_MS);
 
     mpHostConn.on('open', () => {
+      clearTimeout(mpGuestConnOpenTimer);
+      mpGuestConnOpenTimer = null;
       // Send join request
       mpSendToHost({
         type: 'join',
+        version: MP_VERSION,
         name: profile.name,
         color: profile.color,
         icon: profile.icon,
       });
+      mpGuestWelcomeTimer = setTimeout(() => {
+        if (mpSession && mpSession.status === 'lobby' && mpSession.players.length === 0) {
+          mpFailAndReset('Connected to the host, but the lobby did not finish loading. Ask the host to reopen the match and try again.');
+        }
+      }, MP_WELCOME_TIMEOUT_MS);
       mpRenderLobbyGuestWaiting();
     });
 
     mpHostConn.on('data', (data) => mpGuestOnData(data));
     mpHostConn.on('close', () => mpGuestOnHostDisconnected());
-    mpHostConn.on('error', () => mpGuestOnHostDisconnected());
+    mpHostConn.on('error', (err) => {
+      console.error('[MP] host connection error', err);
+      mpGuestOnHostDisconnected();
+    });
     document.body.classList.add('mp-active');
   });
 
   mpPeer.on('error', (err) => {
+    mpClearConnectionTimers();
     console.error('[MP] peer error (guest)', err);
-    mpShowError('Could not connect. Make sure the QR code is fresh and the host is online.');
+    if (err.type === 'peer-unavailable') {
+      mpFailAndReset('Could not find the host. Make sure the QR code/link is fresh and the host lobby is still open.');
+      return;
+    }
+    mpFailAndReset('Could not connect. Make sure the QR code/link is fresh and the host is online.');
   });
 
   mpRenderLobbyGuestConnecting();
@@ -472,8 +725,7 @@ function mpGuestConnect(hostPeerId, profile) {
 
 function mpGuestOnHostDisconnected() {
   if (!mpSession || mpSession.status === 'finished') return;
-  mpShowError('Host disconnected. The match has ended.');
-  mpLeave();
+  mpFailAndReset('Host disconnected. The match has ended.');
 }
 
 function mpGuestOnData(data) {
@@ -493,8 +745,7 @@ function mpGuestOnData(data) {
       break;
     }
     case 'join_rejected':
-      mpShowError(data.reason || 'Joining was rejected by the host.');
-      mpLeave();
+      mpFailAndReset(data.reason || 'Joining was rejected by the host.');
       break;
     case 'game_start':
       mpGuestApplyGameStart(data);
@@ -514,6 +765,12 @@ function mpGuestOnData(data) {
 }
 
 function mpGuestApplyWelcome(data) {
+  clearTimeout(mpGuestWelcomeTimer);
+  mpGuestWelcomeTimer = null;
+  if (Number(data.version) !== MP_VERSION) {
+    mpFailAndReset('This join link opened a different Bakari version. Refresh both devices and try again.');
+    return;
+  }
   mpSession.players = data.players;
   mpSession.status = data.status;
   // Find my profile in the player list
@@ -665,23 +922,7 @@ window.mpGetCellAttribution = function mpGetCellAttribution(row, col) {
 // ─── Leave / cleanup ──────────────────────────────────────────────────────────
 
 function mpLeave() {
-  // Close all connections
-  if (mpPeer) {
-    mpPeer.destroy();
-    mpPeer = null;
-  }
-  Object.keys(mpConnections).forEach((k) => delete mpConnections[k]);
-  mpHostConn = null;
-  mpSession = null;
-
-  document.body.classList.remove('mp-active');
-  mpHideModal();
-  mpHideInGameBar();
-
-  // Remove join param from URL without page reload
-  const url = new URL(window.location.href);
-  url.searchParams.delete('join');
-  window.history.replaceState({}, '', url.toString());
+  mpResetState();
 }
 
 // ─── UI: shared helpers ───────────────────────────────────────────────────────
@@ -785,7 +1026,7 @@ function mpRenderLobbyLoading() {
 }
 
 function mpQrShowFallback(container) {
-  container.innerHTML = '<p class="mp-qr-fallback">QR code unavailable.<br>Use the link below to join.</p>';
+  container.innerHTML = '<p class="mp-qr-fallback">Could not render the QR code.<br>Refresh the page and reopen multiplayer.</p>';
 }
 
 function mpRenderLobbyHost() {
@@ -839,23 +1080,15 @@ function mpRenderLobbyHost() {
   const qrContainer = document.getElementById('mp-qr-container');
   if (qrContainer) {
     qrContainer.innerHTML = '<p class="mp-qr-loading">Generating QR…</p>';
-    if (window.QRCode && typeof QRCode.toDataURL === 'function') {
-      QRCode.toDataURL(joinUrl, { width: 200, margin: 2 }, (err, dataUrl) => {
-        if (!err && dataUrl) {
-          const img = document.createElement('img');
-          img.src = dataUrl;
-          img.alt = 'Scan to join';
-          img.className = 'mp-qr-img';
-          qrContainer.innerHTML = '';
-          qrContainer.appendChild(img);
-        } else {
-          console.warn('[MP] QR toDataURL error', err);
-          mpQrShowFallback(qrContainer);
-        }
+    mpEnsureQrCodeApi()
+      .then((qrApi) => mpQrToDataUrl(qrApi, joinUrl))
+      .then((dataUrl) => {
+        mpRenderQrImage(qrContainer, dataUrl);
+      })
+      .catch((err) => {
+        console.warn('[MP] QR render error', err);
+        mpQrShowFallback(qrContainer);
       });
-    } else {
-      mpQrShowFallback(qrContainer);
-    }
   }
 
   document.getElementById('mp-copy-btn').addEventListener('click', async () => {
