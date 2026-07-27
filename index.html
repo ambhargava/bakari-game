@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bakari Game</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="multiplayer.css" />
   </head>
   <body>
     <main class="app">
@@ -32,6 +33,7 @@
         <div class="button-row secondary-actions">
           <button id="how-to-play-btn" type="button" class="ghost-btn">How to Play</button>
           <button id="share-btn" type="button" class="ghost-btn">Share</button>
+          <button id="mp-btn" type="button" class="ghost-btn">Multiplayer</button>
         </div>
 
         <div class="stats-row" aria-live="polite">
@@ -48,8 +50,17 @@
           <button id="hide-win-banner-btn" class="win-banner-hide-btn" type="button">Hide</button>
         </div>
       </section>
+
+      <!-- In-game multiplayer status bar (hidden until a match is active) -->
+      <div id="mp-bar" class="mp-bar" hidden aria-live="polite"></div>
     </main>
     <p class="app-version" aria-label="App version">v0.8</p>
+
+    <!-- Multiplayer modal (content injected dynamically by multiplayer.js) -->
+    <div id="mp-modal" class="modal" role="dialog" aria-modal="true" aria-label="Multiplayer" hidden>
+      <div class="modal-backdrop" id="mp-modal-backdrop"></div>
+      <div class="modal-content" id="mp-modal-content" role="document"></div>
+    </div>
 
     <div id="help-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
       <div class="modal-backdrop" data-close-modal></div>
@@ -78,5 +89,11 @@
     </div>
 
     <script src="game.js"></script>
+    <!-- Multiplayer dependencies (loaded before multiplayer.js) -->
+    <!-- qrcode: QR code generation in browser (soldair/qrcode, MIT) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+    <!-- peerjs: WebRTC peer-to-peer data channels (PeerJS, MIT) -->
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="multiplayer.js"></script>
   </body>
 </html>
