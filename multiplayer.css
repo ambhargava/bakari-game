@@ -1,0 +1,327 @@
+/* Multiplayer-specific styles */
+
+/* Make cells relative so the player-attribution dot can be absolutely positioned */
+.cell {
+  position: relative;
+}
+
+/* Small colored dot in the bottom-right of a revealed cell showing which player revealed it */
+.cell-player-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}
+
+/* Secondary actions row becomes 3 columns when the MP button is present */
+.secondary-actions {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* ── In-game multiplayer bar ────────────────────────── */
+.mp-bar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 10px 22px rgba(31, 42, 68, 0.08);
+  padding: 0.55rem 0.75rem;
+  margin-top: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mp-bar-turn {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+
+.mp-bar-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.mp-player-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #f4f6ff;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.mp-player-chip.active-turn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(106, 111, 245, 0.22);
+}
+
+.mp-player-chip.disconnected {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.mp-player-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Multiplayer modal overrides ────────────────────── */
+.mp-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+.mp-field {
+  margin-bottom: 0.75rem;
+}
+
+.mp-field label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+
+.mp-field input[type="text"] {
+  width: 100%;
+  height: 2.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  padding: 0 0.65rem;
+  font: inherit;
+}
+
+.mp-color-picker,
+.mp-icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.mp-color-swatch {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.mp-color-swatch.selected,
+.mp-color-swatch:hover {
+  border-color: var(--text);
+  transform: scale(1.15);
+}
+
+.mp-icon-btn {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: #f4f6ff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.mp-icon-btn.selected,
+.mp-icon-btn:hover {
+  border-color: var(--accent);
+  transform: scale(1.12);
+}
+
+.mp-btn-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.mp-btn-row button {
+  flex: 1;
+}
+
+.mp-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+.mp-btn-secondary {
+  background: #f4f6ff;
+  border: 1px solid var(--border);
+  color: #404a66;
+}
+
+/* ── Lobby ──────────────────────────────────────────── */
+.mp-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.75rem 0;
+}
+
+#mp-qr-canvas {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.mp-join-url {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.mp-join-url input {
+  flex: 1;
+  font-size: 0.75rem;
+  background: #f5f7fb;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  height: 2rem;
+  border-radius: 8px;
+  padding: 0 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.mp-copy-btn {
+  height: 2rem;
+  padding: 0 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 8px;
+  background: #e8ebff;
+  border: none;
+  color: #2e358d;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mp-lobby-players {
+  margin: 0.5rem 0;
+}
+
+.mp-lobby-player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #f0f2fa;
+  font-size: 0.88rem;
+}
+
+.mp-lobby-player-row:last-child {
+  border-bottom: none;
+}
+
+.mp-lobby-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mp-lobby-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.mp-lobby-badge {
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: #f0f2fa;
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+}
+
+.mp-lobby-waiting {
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+/* ── End screen ─────────────────────────────────────── */
+.mp-win-header {
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.mp-win-header .mp-win-emoji {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.mp-win-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.mp-final-standings {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.mp-final-standings th {
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0.2rem 0.4rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.mp-final-standings td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid #f0f2fa;
+}
+
+.mp-final-standings tr.winner-row td {
+  font-weight: 700;
+  background: #f5f7ff;
+}
+
+.mp-standing-player {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* ── Disabled SP controls during MP session ─────────── */
+body.mp-active #new-puzzle-btn,
+body.mp-active #restart-btn,
+body.mp-active #hint-btn,
+body.mp-active .difficulty-row {
+  opacity: 0.35;
+  pointer-events: none;
+  cursor: default;
+}

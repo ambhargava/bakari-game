@@ -301,6 +301,11 @@ function hintText() {
 }
 
 function onCellClick(row, col) {
+  // Multiplayer mode intercepts cell clicks
+  if (window.mpHandleCellClick && window.mpHandleCellClick(row, col)) {
+    return;
+  }
+
   if (won || revealed[row][col]) {
     return;
   }
@@ -403,6 +408,17 @@ function renderBoard() {
 
       if (!isRevealed && hintCellKey === key) {
         cell.classList.add('hint');
+      }
+
+      // Multiplayer: show player attribution dot on revealed cells
+      if (isRevealed && window.mpGetCellAttribution) {
+        const attributedPlayer = window.mpGetCellAttribution(row, col);
+        if (attributedPlayer) {
+          const dot = document.createElement('span');
+          dot.className = 'cell-player-dot';
+          dot.style.background = attributedPlayer.color;
+          cell.appendChild(dot);
+        }
       }
 
       cell.addEventListener('click', () => onCellClick(row, col));
