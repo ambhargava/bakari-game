@@ -94,7 +94,6 @@ let mpHostCreateTimer = null;
 let mpGuestPeerOpenTimer = null;
 let mpGuestConnOpenTimer = null;
 let mpGuestWelcomeTimer = null;
-let mpQrLoaderPromise = null;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -126,152 +125,38 @@ function mpGetPeerCtor() {
   return null;
 }
 
-function mpGetQrCodeApi() {
-  const candidates = [
-    window.QRCode,
-    window.qrcode,
-    window.QRCode && window.QRCode.default,
-    window.qrcode && window.qrcode.default,
-  ];
-
-  return candidates.find((candidate) => candidate
-    && (typeof candidate.toDataURL === 'function' || typeof candidate.toCanvas === 'function')) || null;
-}
-
-function mpLoadScript(src) {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.onload = resolve;
-    script.onerror = () => reject(new Error('Could not load ' + src));
-    document.head.appendChild(script);
-  });
-}
-
-function mpEnsureQrCodeApi() {
-  const qrApi = mpGetQrCodeApi();
-  if (qrApi) return Promise.resolve(qrApi);
-  if (mpQrLoaderPromise) return mpQrLoaderPromise;
-
-  const fallbackSources = [
-    'https://unpkg.com/qrcode@1.5.4/build/qrcode.min.js',
-  ];
-
-  mpQrLoaderPromise = new Promise((resolve, reject) => {
-    let idx = 0;
-    const tryNext = () => {
-      if (idx >= fallbackSources.length) {
-        reject(new Error('QR library unavailable'));
-        return;
-      }
-      const src = fallbackSources[idx];
-      idx += 1;
-      mpLoadScript(src)
-        .then(() => {
-          const loadedApi = mpGetQrCodeApi();
-          if (loadedApi) resolve(loadedApi);
-          else tryNext();
-        })
-        .catch(() => tryNext());
-    };
-    tryNext();
-  }).finally(() => {
-    mpQrLoaderPromise = null;
-  });
-
-  return mpQrLoaderPromise;
-}
-
 /**
- * Render the QR code into container using the best available method:
- * 1. Inline SVG via toString (no canvas — most reliable on mobile)
- * 2. <img> with a data URL from toDataURL
- * 3. <img> with a data URL extracted from an off-screen canvas via toCanvas
- * Falls back to mpQrShowFallback on complete failure.
+ * Render a QR code for `text` into `container` using the locally-bundled
+ * qrcode-svg library (assets/qrcode.min.js).  Generates an inline SVG with
+ * no canvas and no external network request, so it works on all mobile
+ * browsers regardless of network conditions.
+ * Falls back to mpQrShowFallback if the library failed to load.
  */
-function mpRenderQrCode(qrApi, container, text) {
-  const svgOpts = { type: 'svg', width: MP_QR_SIZE, margin: 2 };
-  const pxOpts = { width: MP_QR_SIZE, margin: 2 };
-
-  // Helper: wrap a callback/Promise-style qrcode call into a Promise
-  function wrapCall(fn) {
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const done = (err, val) => {
-        if (settled) return;
-        settled = true;
-        if (err) reject(err);
-        else if (val == null || val === '') reject(new Error('empty result'));
-        else resolve(val);
-      };
-      try {
-        const ret = fn(done);
-        if (ret && typeof ret.then === 'function') {
-          ret.then((v) => done(null, v)).catch((e) => done(e));
-        }
-      } catch (e) {
-        done(e);
-      }
-    });
+function mpRenderQrCode(container, text) {
+  try {
+    const Ctor = window.QRCode;
+    if (typeof Ctor !== 'function' || typeof Ctor.prototype.svg !== 'function') {
+      throw new Error('QRCode library not available');
+    }
+    const svgStr = new Ctor({
+      content: text,
+      width: MP_QR_SIZE,
+      height: MP_QR_SIZE,
+      padding: 2,
+      join: true,           // single <path> — cleaner SVG, reliable scan
+      xmlDeclaration: false,
+      container: 'svg',
+    }).svg();
+    if (!svgStr || !svgStr.includes('<svg')) throw new Error('empty SVG');
+    const wrap = document.createElement('div');
+    wrap.className = 'mp-qr-img mp-qr-svg';
+    wrap.innerHTML = svgStr;
+    container.innerHTML = '';
+    container.appendChild(wrap);
+  } catch (err) {
+    console.warn('[MP] QR render error', err);
+    mpQrShowFallback(container);
   }
-
-  // 1. Inline SVG — zero canvas dependency
-  const trySvg = (typeof qrApi.toString === 'function')
-    ? wrapCall((cb) => qrApi.toString(text, svgOpts, cb))
-        .then((svgStr) => {
-          if (!svgStr || !svgStr.includes('<svg')) throw new Error('not SVG');
-          const wrap = document.createElement('div');
-          wrap.className = 'mp-qr-img mp-qr-svg';
-          wrap.innerHTML = svgStr;
-          const svgEl = wrap.querySelector('svg');
-          if (svgEl) {
-            svgEl.setAttribute('width', MP_QR_SIZE);
-            svgEl.setAttribute('height', MP_QR_SIZE);
-            svgEl.removeAttribute('xmlns:xlink'); // silence deprecation warnings
-          }
-          container.innerHTML = '';
-          container.appendChild(wrap);
-        })
-    : Promise.reject(new Error('toString unavailable'));
-
-  // 2. toDataURL → <img>
-  const tryDataUrl = () => {
-    if (typeof qrApi.toDataURL !== 'function') return Promise.reject(new Error('toDataURL unavailable'));
-    return wrapCall((cb) => qrApi.toDataURL(text, pxOpts, cb))
-      .then((dataUrl) => {
-        const img = document.createElement('img');
-        img.src = dataUrl;
-        img.alt = 'Scan to join';
-        img.className = 'mp-qr-img';
-        container.innerHTML = '';
-        container.appendChild(img);
-      });
-  };
-
-  // 3. toCanvas → extract PNG data URL → <img>
-  const tryCanvas = () => {
-    if (typeof qrApi.toCanvas !== 'function') return Promise.reject(new Error('toCanvas unavailable'));
-    const canvas = document.createElement('canvas');
-    return wrapCall((cb) => qrApi.toCanvas(canvas, text, pxOpts, cb))
-      .then(() => {
-        const dataUrl = canvas.toDataURL('image/png');
-        const img = document.createElement('img');
-        img.src = dataUrl;
-        img.alt = 'Scan to join';
-        img.className = 'mp-qr-img';
-        container.innerHTML = '';
-        container.appendChild(img);
-      });
-  };
-
-  trySvg
-    .catch(() => tryDataUrl())
-    .catch(() => tryCanvas())
-    .catch((err) => {
-      console.warn('[MP] QR render error', err);
-      mpQrShowFallback(container);
-    });
 }
 
 function mpClearConnectionTimers() {
@@ -1147,17 +1032,10 @@ function mpRenderLobbyHost() {
 
   mpShowModal();
 
-  // Render QR code — tries inline SVG first (no canvas), then falls back to
-  // data-URL img. This reliably works on all mobile browsers.
+  // Render QR code using locally-bundled qrcode-svg (no CDN, no canvas needed).
   const qrContainer = document.getElementById('mp-qr-container');
   if (qrContainer) {
-    qrContainer.innerHTML = '<p class="mp-qr-loading">Generating QR…</p>';
-    mpEnsureQrCodeApi()
-      .then((qrApi) => mpRenderQrCode(qrApi, qrContainer, joinUrl))
-      .catch((err) => {
-        console.warn('[MP] QR load error', err);
-        mpQrShowFallback(qrContainer);
-      });
+    mpRenderQrCode(qrContainer, joinUrl);
   }
 
   document.getElementById('mp-copy-btn').addEventListener('click', async () => {

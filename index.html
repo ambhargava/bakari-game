@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bakari Game</title>
-    <link rel="stylesheet" href="styles.css?v=0.9.4" />
-    <link rel="stylesheet" href="multiplayer.css?v=0.9.4" />
+    <link rel="stylesheet" href="styles.css?v=0.9.5" />
+    <link rel="stylesheet" href="multiplayer.css?v=0.9.5" />
   </head>
   <body>
     <main class="app">
@@ -54,7 +54,7 @@
       <!-- In-game multiplayer status bar (hidden until a match is active) -->
       <div id="mp-bar" class="mp-bar" hidden aria-live="polite"></div>
     </main>
-    <p class="app-version" aria-label="App version">v0.9.4</p>
+    <p class="app-version" aria-label="App version">v0.9.5</p>
 
     <!-- Multiplayer modal (content injected dynamically by multiplayer.js) -->
     <div id="mp-modal" class="modal" role="dialog" aria-modal="true" aria-label="Multiplayer" hidden>
@@ -88,12 +88,12 @@
       </div>
     </div>
 
-    <script src="game.js?v=0.9.4"></script>
+    <script src="game.js?v=0.9.5"></script>
     <!-- Multiplayer dependencies (loaded before multiplayer.js) -->
-    <!-- qrcode: QR code generation in browser (soldair/qrcode, MIT) -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+    <!-- qrcode-svg: local QR code generation (no CDN dependency), MIT license -->
+    <script src="assets/qrcode.min.js?v=0.9.5"></script>
     <!-- peerjs: WebRTC peer-to-peer data channels (PeerJS, MIT) -->
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="multiplayer.js?v=0.9.4"></script>
+    <script src="multiplayer.js?v=0.9.5"></script>
   </body>
 </html>
