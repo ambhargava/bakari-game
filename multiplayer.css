@@ -10,8 +10,8 @@
   position: absolute;
   bottom: 2px;
   right: 2px;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 2px solid #000;
   pointer-events: none;
@@ -43,9 +43,11 @@
 }
 
 .mp-bar-identity {
-  font-size: 0.75rem;
-  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
   text-align: center;
+  opacity: 0.75;
 }
 
 .mp-bar-players {
@@ -202,6 +204,23 @@
   display: block;
   width: 200px;
   height: 200px;
+}
+
+/* Inline-SVG QR variant — override border/size on the wrapper, let SVG fill it */
+.mp-qr-svg {
+  display: block;
+  width: 200px;
+  height: 200px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: #fff;
+}
+
+.mp-qr-svg svg {
+  display: block;
+  width: 200px !important;
+  height: 200px !important;
 }
 
 .mp-qr-fallback,

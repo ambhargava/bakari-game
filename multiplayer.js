@@ -183,65 +183,95 @@ function mpEnsureQrCodeApi() {
   return mpQrLoaderPromise;
 }
 
-function mpQrToDataUrl(qrApi, text) {
-  const options = { width: MP_QR_SIZE, margin: 2 };
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const finish = (err, dataUrl) => {
-      if (settled) return;
-      settled = true;
-      if (err) {
-        reject(err);
-      } else if (!dataUrl) {
-        reject(new Error('QR code generation returned an empty image.'));
-      } else {
-        resolve(dataUrl);
-      }
-    };
+/**
+ * Render the QR code into container using the best available method:
+ * 1. Inline SVG via toString (no canvas — most reliable on mobile)
+ * 2. <img> with a data URL from toDataURL
+ * 3. <img> with a data URL extracted from an off-screen canvas via toCanvas
+ * Falls back to mpQrShowFallback on complete failure.
+ */
+function mpRenderQrCode(qrApi, container, text) {
+  const svgOpts = { type: 'svg', width: MP_QR_SIZE, margin: 2 };
+  const pxOpts = { width: MP_QR_SIZE, margin: 2 };
 
-    try {
-      if (typeof qrApi.toDataURL === 'function') {
-        const maybePromise = qrApi.toDataURL(text, options, finish);
-        if (maybePromise && typeof maybePromise.then === 'function') {
-          maybePromise.then((dataUrl) => finish(null, dataUrl)).catch((err) => finish(err));
+  // Helper: wrap a callback/Promise-style qrcode call into a Promise
+  function wrapCall(fn) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const done = (err, val) => {
+        if (settled) return;
+        settled = true;
+        if (err) reject(err);
+        else if (val == null || val === '') reject(new Error('empty result'));
+        else resolve(val);
+      };
+      try {
+        const ret = fn(done);
+        if (ret && typeof ret.then === 'function') {
+          ret.then((v) => done(null, v)).catch((e) => done(e));
         }
-        return;
+      } catch (e) {
+        done(e);
       }
+    });
+  }
 
-      if (typeof qrApi.toCanvas === 'function') {
-        const canvas = document.createElement('canvas');
-        const finishCanvas = (err) => {
-          if (err) {
-            finish(err);
-            return;
+  // 1. Inline SVG — zero canvas dependency
+  const trySvg = (typeof qrApi.toString === 'function')
+    ? wrapCall((cb) => qrApi.toString(text, svgOpts, cb))
+        .then((svgStr) => {
+          if (!svgStr || !svgStr.includes('<svg')) throw new Error('not SVG');
+          const wrap = document.createElement('div');
+          wrap.className = 'mp-qr-img mp-qr-svg';
+          wrap.innerHTML = svgStr;
+          const svgEl = wrap.querySelector('svg');
+          if (svgEl) {
+            svgEl.setAttribute('width', MP_QR_SIZE);
+            svgEl.setAttribute('height', MP_QR_SIZE);
+            svgEl.removeAttribute('xmlns:xlink'); // silence deprecation warnings
           }
-          try {
-            finish(null, canvas.toDataURL('image/png'));
-          } catch (canvasErr) {
-            finish(canvasErr);
-          }
-        };
-        const maybePromise = qrApi.toCanvas(canvas, text, options, finishCanvas);
-        if (maybePromise && typeof maybePromise.then === 'function') {
-          maybePromise.then(() => finishCanvas(null)).catch((err) => finishCanvas(err));
-        }
-        return;
-      }
+          container.innerHTML = '';
+          container.appendChild(wrap);
+        })
+    : Promise.reject(new Error('toString unavailable'));
 
-      finish(new Error('Unsupported QRCode export shape.'));
-    } catch (err) {
-      finish(err);
-    }
-  });
-}
+  // 2. toDataURL → <img>
+  const tryDataUrl = () => {
+    if (typeof qrApi.toDataURL !== 'function') return Promise.reject(new Error('toDataURL unavailable'));
+    return wrapCall((cb) => qrApi.toDataURL(text, pxOpts, cb))
+      .then((dataUrl) => {
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.alt = 'Scan to join';
+        img.className = 'mp-qr-img';
+        container.innerHTML = '';
+        container.appendChild(img);
+      });
+  };
 
-function mpRenderQrImage(container, dataUrl) {
-  const img = document.createElement('img');
-  img.src = dataUrl;
-  img.alt = 'Scan to join';
-  img.className = 'mp-qr-img';
-  container.innerHTML = '';
-  container.appendChild(img);
+  // 3. toCanvas → extract PNG data URL → <img>
+  const tryCanvas = () => {
+    if (typeof qrApi.toCanvas !== 'function') return Promise.reject(new Error('toCanvas unavailable'));
+    const canvas = document.createElement('canvas');
+    return wrapCall((cb) => qrApi.toCanvas(canvas, text, pxOpts, cb))
+      .then(() => {
+        const dataUrl = canvas.toDataURL('image/png');
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.alt = 'Scan to join';
+        img.className = 'mp-qr-img';
+        container.innerHTML = '';
+        container.appendChild(img);
+      });
+  };
+
+  trySvg
+    .catch(() => tryDataUrl())
+    .catch(() => tryCanvas())
+    .catch((err) => {
+      console.warn('[MP] QR render error', err);
+      mpQrShowFallback(container);
+    });
 }
 
 function mpClearConnectionTimers() {
@@ -594,6 +624,34 @@ function mpHostFinishGame() {
   mpShowWinScreen();
 }
 
+function mpHostRematch() {
+  if (!mpSession || mpSession.mode !== 'host') return;
+
+  // Reset game state but keep players and connections
+  mpSession.status = 'playing';
+  mpSession.currentTurnIdx = 0;
+  mpSession.revealedBy = {};
+  mpSession.winner = null;
+  mpSession.waitingForMoveConfirm = false;
+  mpSession.players.forEach((p) => { p.score = 0; p.totalMoves = 0; });
+
+  const difficulty = document.getElementById('difficulty').value;
+  const seed = randomSeed(); // game.js global
+
+  startPuzzle(seed, difficulty); // game.js global
+
+  mpBroadcast({
+    type: 'game_start',
+    seed,
+    difficulty,
+    turnOrder: mpSession.players.map((p) => p.id),
+    rematch: true,
+  });
+
+  mpHideModal();
+  mpShowInGameBar();
+}
+
 function mpHostSendResync(peerId) {
   const conn = mpConnections[peerId];
   if (!conn) return;
@@ -782,6 +840,14 @@ function mpGuestApplyWelcome(data) {
 function mpGuestApplyGameStart(data) {
   mpSession.status = 'playing';
   mpSession.currentTurnIdx = 0;
+  mpSession.revealedBy = {};
+  mpSession.winner = null;
+  mpSession.waitingForMoveConfirm = false;
+
+  // On rematch, reset per-player stats so scores start fresh
+  if (data.rematch) {
+    mpSession.players.forEach((p) => { p.score = 0; p.totalMoves = 0; });
+  }
 
   // Guests start the puzzle with the same seed/difficulty as host
   startPuzzle(data.seed, data.difficulty); // game.js global
@@ -1011,7 +1077,7 @@ function mpUpdateInGameUI() {
 
   const me = mpSession.myProfile || mpSession.players.find((p) => p.id === mpSession.myId);
   const identityHtml = me
-    ? `<div class="mp-bar-identity">You are <span style="background:${mpEscape(me.color)};border:1.5px solid #000;display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle;margin:0 2px"></span> ${mpEscape(me.icon)} ${mpEscape(me.name)}</div>`
+    ? `<div class="mp-bar-identity">You are <span style="background:${mpEscape(me.color)};border:2px solid #000;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin:0 3px"></span>${mpEscape(me.icon)} ${mpEscape(me.name)}</div>`
     : '';
 
   mpBarEl.innerHTML = `
@@ -1081,18 +1147,15 @@ function mpRenderLobbyHost() {
 
   mpShowModal();
 
-  // Generate QR code as a data URL and render into an <img> — more reliable than
-  // canvas on mobile Chrome (avoids 0×0 canvas / hidden-element sizing issues).
+  // Render QR code — tries inline SVG first (no canvas), then falls back to
+  // data-URL img. This reliably works on all mobile browsers.
   const qrContainer = document.getElementById('mp-qr-container');
   if (qrContainer) {
     qrContainer.innerHTML = '<p class="mp-qr-loading">Generating QR…</p>';
     mpEnsureQrCodeApi()
-      .then((qrApi) => mpQrToDataUrl(qrApi, joinUrl))
-      .then((dataUrl) => {
-        mpRenderQrImage(qrContainer, dataUrl);
-      })
+      .then((qrApi) => mpRenderQrCode(qrApi, qrContainer, joinUrl))
       .catch((err) => {
-        console.warn('[MP] QR render error', err);
+        console.warn('[MP] QR load error', err);
         mpQrShowFallback(qrContainer);
       });
   }
@@ -1285,6 +1348,11 @@ function mpShowWinScreen() {
     </tr>`;
   }).join('');
 
+  const isHost = mpSession.mode === 'host';
+  const rematchBtn = isHost
+    ? '<button id="mp-rematch-btn" class="mp-btn-primary">Rematch</button>'
+    : '<p class="mp-lobby-waiting">Waiting for host to start a rematch…</p>';
+
   mpModalContentEl.innerHTML = `
     <div class="mp-win-header">
       <span class="mp-win-emoji">🎉</span>
@@ -1301,11 +1369,18 @@ function mpShowWinScreen() {
     </table>
 
     <div class="mp-btn-row">
+      ${rematchBtn}
       <button id="mp-quit-btn" class="mp-btn-secondary">Quit to Single Player</button>
     </div>
   `;
 
   mpShowModal();
+
+  if (isHost) {
+    document.getElementById('mp-rematch-btn').addEventListener('click', () => {
+      mpHostRematch();
+    });
+  }
 
   document.getElementById('mp-quit-btn').addEventListener('click', () => {
     mpLeave();
