@@ -1009,9 +1009,15 @@ function mpUpdateInGameUI() {
     </span>`;
   }).join('');
 
+  const me = mpSession.myProfile || mpSession.players.find((p) => p.id === mpSession.myId);
+  const identityHtml = me
+    ? `<div class="mp-bar-identity">You are <span style="background:${mpEscape(me.color)};border:1.5px solid #000;display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle;margin:0 2px"></span> ${mpEscape(me.icon)} ${mpEscape(me.name)}</div>`
+    : '';
+
   mpBarEl.innerHTML = `
     <div class="mp-bar-turn" id="mp-turn-label">${turnLabel}</div>
     <div class="mp-bar-players">${playerChips}</div>
+    ${identityHtml}
   `;
 }
 

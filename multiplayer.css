@@ -5,15 +5,15 @@
   position: relative;
 }
 
-/* Small colored dot in the bottom-right of a revealed cell showing which player revealed it */
+/* Colored dot in the bottom-right of a revealed cell showing which player revealed it */
 .cell-player-dot {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  width: 7px;
-  height: 7px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  border: 2px solid #000;
   pointer-events: none;
 }
 
@@ -39,6 +39,12 @@
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--text);
+  text-align: center;
+}
+
+.mp-bar-identity {
+  font-size: 0.75rem;
+  color: var(--muted);
   text-align: center;
 }
 
