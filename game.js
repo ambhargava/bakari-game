@@ -201,8 +201,8 @@ function generatePuzzle(seed, difficulty) {
   };
 }
 
-function regionColor(regionId, total) {
-  const hue = Math.round((regionId * 360) / total);
+function regionColor(regionId) {
+  const hue = Math.round((regionId * 137.5) % 360);
   return `hsl(${hue} 62% 72%)`;
 }
 
@@ -384,7 +384,7 @@ function renderBoard() {
 
       cell.type = 'button';
       cell.className = 'cell';
-      cell.style.background = regionColor(puzzle.regionMap[row][col], puzzle.size);
+      cell.style.background = regionColor(puzzle.regionMap[row][col]);
       cell.setAttribute('role', 'gridcell');
       cell.setAttribute('aria-label', `Row ${row + 1} Column ${col + 1}`);
 
