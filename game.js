@@ -201,9 +201,21 @@ function generatePuzzle(seed, difficulty) {
   };
 }
 
+const REGION_COLORS = [
+  '#ef9a9a',
+  '#ffcc80',
+  '#fff59d',
+  '#aed581',
+  '#90caf9',
+  '#9fa8da',
+  '#ce93d8',
+  '#f48fb1',
+  '#bcaaa4',
+  '#b0bec5'
+];
+
 function regionColor(regionId) {
-  const hue = Math.round((regionId * 137.5) % 360);
-  return `hsl(${hue} 62% 72%)`;
+  return REGION_COLORS[regionId % REGION_COLORS.length];
 }
 
 function resetState() {
