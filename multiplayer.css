@@ -10,8 +10,8 @@
   position: absolute;
   bottom: 2px;
   right: 2px;
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   border: 2px solid #000;
   pointer-events: none;
@@ -135,9 +135,32 @@
 }
 
 .mp-color-swatch.selected,
-.mp-color-swatch:hover {
+.mp-color-swatch:hover:not(:disabled) {
   border-color: var(--text);
   transform: scale(1.15);
+}
+
+.mp-color-swatch.used,
+.mp-color-swatch:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+  border-color: transparent;
+  position: relative;
+}
+
+.mp-color-swatch.used::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.45) 3px,
+    rgba(0, 0, 0, 0.45) 4px
+  );
 }
 
 .mp-icon-btn {
@@ -154,9 +177,18 @@
 }
 
 .mp-icon-btn.selected,
-.mp-icon-btn:hover {
+.mp-icon-btn:hover:not(:disabled) {
   border-color: var(--accent);
   transform: scale(1.12);
+}
+
+.mp-icon-btn.used,
+.mp-icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+  text-decoration: line-through;
+  border-color: transparent;
 }
 
 .mp-btn-row {

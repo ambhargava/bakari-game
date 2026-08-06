@@ -49,6 +49,8 @@ const MP_PEER_OPEN_TIMEOUT_MS = 12000;
 const MP_CONN_OPEN_TIMEOUT_MS = 12000;
 const MP_WELCOME_TIMEOUT_MS = 12000;
 
+const MP_PROFILE_STORAGE_KEY = 'bakari_mp_profile';
+
 const MP_COLORS = [
   '#e74c3c', // red
   '#3498db', // blue
@@ -61,6 +63,25 @@ const MP_COLORS = [
 ];
 
 const MP_ICONS = ['🦁', '🐬', '🐘', '🦊', '🦋', '🐢', '🦅', '🐙'];
+
+// ─── Profile persistence ──────────────────────────────────────────────────────
+
+function mpSaveProfile(profile) {
+  try {
+    localStorage.setItem(
+      MP_PROFILE_STORAGE_KEY,
+      JSON.stringify({ name: profile.name, color: profile.color, icon: profile.icon }),
+    );
+  } catch (_) {}
+}
+
+function mpLoadProfile() {
+  try {
+    return JSON.parse(localStorage.getItem(MP_PROFILE_STORAGE_KEY) || 'null');
+  } catch (_) {
+    return null;
+  }
+}
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -371,6 +392,24 @@ function mpHostHandleJoin(peerId, data) {
   if (mpSession.status !== 'lobby') {
     if (conn) {
       mpSend(conn, { type: 'join_rejected', reason: 'Game already in progress' });
+    }
+    return;
+  }
+
+  // Reject if color or icon is already taken by another player
+  const takenColors = mpSession.players.filter((p) => p.id !== peerId).map((p) => p.color);
+  const takenIcons = mpSession.players.filter((p) => p.id !== peerId).map((p) => p.icon);
+  const colorConflict = takenColors.includes(data.color);
+  const iconConflict = takenIcons.includes(data.icon);
+  if (colorConflict || iconConflict) {
+    if (conn) {
+      const what = [colorConflict && 'color', iconConflict && 'icon'].filter(Boolean).join(' and ');
+      mpSend(conn, {
+        type: 'join_rejected',
+        reason: `Your chosen ${what} is already taken by another player. Please pick a different one.`,
+        takenColors,
+        takenIcons,
+      });
     }
     return;
   }
@@ -688,7 +727,15 @@ function mpGuestOnData(data) {
       break;
     }
     case 'join_rejected':
-      mpFailAndReset(data.reason || 'Joining was rejected by the host.');
+      clearTimeout(mpGuestWelcomeTimer);
+      mpGuestWelcomeTimer = null;
+      if (data.takenColors !== undefined || data.takenIcons !== undefined) {
+        // Color/icon conflict — re-show the setup form without tearing down the connection
+        mpShowError(data.reason || 'That color or icon is already taken. Please choose a different one.');
+        mpRenderSetupForm('guest', null, data.takenColors || [], data.takenIcons || []);
+      } else {
+        mpFailAndReset(data.reason || 'Joining was rejected by the host.');
+      }
       break;
     case 'game_start':
       mpGuestApplyGameStart(data);
@@ -1103,20 +1150,37 @@ function mpRenderLobbyGuestWaiting() {
 
 // ─── UI: profile setup form ───────────────────────────────────────────────────
 
-function mpRenderSetupForm(mode, hostPeerId) {
-  // Pick defaults: first unused color/icon
-  const defaultColor = MP_COLORS[0];
-  const defaultIcon = MP_ICONS[0];
+function mpRenderSetupForm(mode, hostPeerId, takenColors = [], takenIcons = []) {
+  // Load last-used profile from localStorage
+  const saved = mpLoadProfile();
 
-  const colorSwatches = MP_COLORS.map((c, i) => `
-    <button type="button" class="mp-color-swatch${i === 0 ? ' selected' : ''}"
-      data-color="${c}" style="background:${c}" aria-label="Color ${c}"></button>
-  `).join('');
+  // Pick default color: saved preference if available and not taken, else first free
+  const savedColor = saved && MP_COLORS.includes(saved.color) ? saved.color : null;
+  const defaultColor =
+    (savedColor && !takenColors.includes(savedColor) ? savedColor : null) ||
+    MP_COLORS.find((c) => !takenColors.includes(c)) ||
+    MP_COLORS[0];
 
-  const iconBtns = MP_ICONS.map((ic, i) => `
-    <button type="button" class="mp-icon-btn${i === 0 ? ' selected' : ''}"
-      data-icon="${ic}">${ic}</button>
-  `).join('');
+  // Pick default icon: saved preference if available and not taken, else first free
+  const savedIcon = saved && MP_ICONS.includes(saved.icon) ? saved.icon : null;
+  const defaultIcon =
+    (savedIcon && !takenIcons.includes(savedIcon) ? savedIcon : null) ||
+    MP_ICONS.find((ic) => !takenIcons.includes(ic)) ||
+    MP_ICONS[0];
+
+  const colorSwatches = MP_COLORS.map((c) => {
+    const taken = takenColors.includes(c);
+    const selected = c === defaultColor;
+    return `<button type="button" class="mp-color-swatch${selected ? ' selected' : ''}${taken ? ' used' : ''}"
+      data-color="${c}" style="background:${c}" aria-label="Color ${c}"${taken ? ' disabled' : ''}></button>`;
+  }).join('');
+
+  const iconBtns = MP_ICONS.map((ic) => {
+    const taken = takenIcons.includes(ic);
+    const selected = ic === defaultIcon;
+    return `<button type="button" class="mp-icon-btn${selected ? ' selected' : ''}${taken ? ' used' : ''}"
+      data-icon="${ic}"${taken ? ' disabled' : ''}>${ic}</button>`;
+  }).join('');
 
   const title = mode === 'host' ? 'Create Multiplayer Match' : 'Join Multiplayer Match';
   const actionLabel = mode === 'host' ? 'Create Match' : 'Join';
@@ -1127,7 +1191,8 @@ function mpRenderSetupForm(mode, hostPeerId) {
 
     <div class="mp-field">
       <label for="mp-name-input">Your name</label>
-      <input type="text" id="mp-name-input" maxlength="20" placeholder="Enter your name" />
+      <input type="text" id="mp-name-input" maxlength="20" placeholder="Enter your name"
+        value="${mpEscape(saved && saved.name ? saved.name : '')}" />
     </div>
 
     <div class="mp-field">
@@ -1153,7 +1218,7 @@ function mpRenderSetupForm(mode, hostPeerId) {
   // Color swatch picker
   document.getElementById('mp-color-picker').addEventListener('click', (e) => {
     const swatch = e.target.closest('.mp-color-swatch');
-    if (!swatch) return;
+    if (!swatch || swatch.disabled) return;
     selectedColor = swatch.dataset.color;
     document.querySelectorAll('.mp-color-swatch').forEach((s) => s.classList.remove('selected'));
     swatch.classList.add('selected');
@@ -1162,7 +1227,7 @@ function mpRenderSetupForm(mode, hostPeerId) {
   // Icon picker
   document.getElementById('mp-icon-picker').addEventListener('click', (e) => {
     const btn = e.target.closest('.mp-icon-btn');
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     selectedIcon = btn.dataset.icon;
     document.querySelectorAll('.mp-icon-btn').forEach((b) => b.classList.remove('selected'));
     btn.classList.add('selected');
@@ -1176,10 +1241,27 @@ function mpRenderSetupForm(mode, hostPeerId) {
       return;
     }
     const profile = { name, color: selectedColor, icon: selectedIcon };
+    mpSaveProfile(profile);
     if (mode === 'host') {
       mpHostCreate(profile);
     } else {
-      mpGuestConnect(hostPeerId, profile);
+      // Peer and connection already established by mpGuestSetup; just send the join message
+      mpSession.myProfile = mpMakePlayer(mpSession.myId, profile.name, profile.color, profile.icon, false);
+      mpSendToHost({
+        type: 'join',
+        version: MP_VERSION,
+        name: profile.name,
+        color: profile.color,
+        icon: profile.icon,
+      });
+      mpGuestWelcomeTimer = setTimeout(() => {
+        if (mpSession && mpSession.status === 'lobby') {
+          mpFailAndReset(
+            'Connected to the host, but the lobby did not finish loading. Ask the host to reopen the match and try again.',
+          );
+        }
+      }, MP_WELCOME_TIMEOUT_MS);
+      mpRenderLobbyGuestWaiting();
     }
   });
 
@@ -1194,6 +1276,117 @@ function mpRenderSetupForm(mode, hostPeerId) {
     const input = document.getElementById('mp-name-input');
     if (input) input.focus();
   }, 50);
+}
+
+// ─── Guest: peek lobby and present setup form ─────────────────────────────────
+
+function mpGuestSetup(hostPeerId) {
+  const PeerCtor = mpGetPeerCtor();
+  if (!PeerCtor) {
+    mpModalContentEl.innerHTML = '';
+    mpShowModal();
+    mpShowError('Multiplayer could not start because PeerJS failed to load. Refresh and try again.');
+    return;
+  }
+
+  // Show a brief loading state while we peek the host's player list
+  mpModalContentEl.innerHTML = `
+    <button id="mp-guest-setup-close" class="modal-close" type="button" aria-label="Close">✕</button>
+    <p style="text-align:center;color:var(--muted);font-size:0.9rem;margin:1.75rem 0">Connecting to host\u2026</p>
+  `;
+  mpShowModal();
+  document.getElementById('mp-guest-setup-close').addEventListener('click', () => {
+    mpHideModal();
+    if (mpSession) mpLeave();
+  });
+
+  mpGuestPeerOpenTimer = setTimeout(() => {
+    mpGuestPeerOpenTimer = null;
+    if (!mpSession) {
+      mpFailAndReset('Could not reach the multiplayer network. Check your connection and try again.');
+    }
+  }, MP_PEER_OPEN_TIMEOUT_MS);
+
+  const peer = new PeerCtor();
+
+  peer.on('open', (myPeerId) => {
+    clearTimeout(mpGuestPeerOpenTimer);
+    mpGuestPeerOpenTimer = null;
+
+    mpPeer = peer;
+    mpSession = {
+      mode: 'guest',
+      myId: myPeerId,
+      myProfile: null,
+      players: [],
+      status: 'lobby',
+      currentTurnIdx: 0,
+      revealedBy: {},
+      winner: null,
+      waitingForMoveConfirm: false,
+    };
+    document.body.classList.add('mp-active');
+
+    mpGuestConnOpenTimer = setTimeout(() => {
+      mpGuestConnOpenTimer = null;
+      if (mpHostConn && !mpHostConn.open) {
+        mpFailAndReset(
+          'Could not open a connection to the host. Make sure the host lobby is still open and try again.',
+        );
+      }
+    }, MP_CONN_OPEN_TIMEOUT_MS);
+
+    // Connect without a name in metadata so the host sends the current player list (welcome)
+    const conn = peer.connect(hostPeerId, { reliable: true });
+    mpHostConn = conn;
+
+    conn.on('open', () => {
+      clearTimeout(mpGuestConnOpenTimer);
+      mpGuestConnOpenTimer = null;
+      // Host will respond with a welcome message because no metadata.name is set
+    });
+
+    let peeked = false;
+    conn.on('data', (data) => {
+      if (!peeked && data.type === 'welcome') {
+        peeked = true;
+        if (Number(data.version) !== MP_VERSION) {
+          mpFailAndReset(
+            'This join link opened a different Bakari version. Refresh both devices and try again.',
+          );
+          return;
+        }
+        if (data.status !== 'lobby') {
+          mpFailAndReset('This match has already started and is not accepting new players.');
+          return;
+        }
+        const takenColors = (data.players || []).map((p) => p.color);
+        const takenIcons = (data.players || []).map((p) => p.icon);
+        mpRenderSetupForm('guest', hostPeerId, takenColors, takenIcons);
+        return;
+      }
+      mpGuestOnData(data);
+    });
+
+    conn.on('close', () => mpGuestOnHostDisconnected());
+    conn.on('error', (err) => {
+      console.error('[MP] host connection error (guest setup)', err);
+      mpGuestOnHostDisconnected();
+    });
+  });
+
+  peer.on('error', (err) => {
+    clearTimeout(mpGuestPeerOpenTimer);
+    mpGuestPeerOpenTimer = null;
+    console.error('[MP] peer error (guest setup)', err);
+    if (err.type === 'peer-unavailable') {
+      mpFailAndReset(
+        'Could not find the host. Make sure the QR code/link is fresh and the host lobby is still open.',
+      );
+    } else {
+      mpFailAndReset('Could not connect. Make sure the QR code/link is fresh and the host is online.');
+    }
+  });
 }
 
 // ─── UI: win screen ───────────────────────────────────────────────────────────
@@ -1302,7 +1495,7 @@ function mpInit() {
   // Check if URL has ?join= param (guest opening a join link)
   const joinPeerId = mpGetJoinParam();
   if (joinPeerId) {
-    mpRenderSetupForm('guest', joinPeerId);
+    mpGuestSetup(joinPeerId);
   }
 }
 
