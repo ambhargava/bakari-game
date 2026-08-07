@@ -468,9 +468,11 @@ function mpHostScheduleGraceTimeout(playerId, disconnectedUntil) {
 function mpHostOnGuestDisconnected(peerId) {
   delete mpConnections[peerId];
   if (!mpSession || mpSession.mode !== 'host') return;
+  let disconnectedPlayerId = null;
   const idx = mpSession.players.findIndex((p) => p.peerId === peerId);
   if (idx >= 0) {
     const player = mpSession.players[idx];
+    disconnectedPlayerId = player.id;
     player.isConnected = false;
     player.peerId = null;
     player.disconnectedAt = Date.now();
@@ -487,7 +489,7 @@ function mpHostOnGuestDisconnected(peerId) {
   if (mpSession.status === 'playing') {
     // If it was the disconnected player's turn, advance
     const current = mpSession.players[mpSession.currentTurnIdx];
-    if (current && current.peerId === peerId) {
+    if (current && disconnectedPlayerId && current.id === disconnectedPlayerId) {
       mpAdvanceTurn();
       mpBroadcast({
         type: 'move_committed',
