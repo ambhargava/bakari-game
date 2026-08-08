@@ -51,6 +51,15 @@ const MP_WELCOME_TIMEOUT_MS = 12000;
 const MP_RECONNECT_GRACE_MS = 45000;
 const MP_RECONNECT_MAX_ATTEMPTS = 6;
 const MP_RECONNECT_BACKOFF_MS = [0, 1500, 3000, 6000, 10000, 15000];
+const MP_HOST_SIGNALING_RECONNECT_MAX = 5;
+const MP_HOST_SIGNALING_BACKOFF_MS = [0, 2000, 5000, 10000, 20000];
+const MP_HOST_SIGNALING_ATTEMPT_WINDOW_MS = 3000;
+
+// Error types that are transient / signaling-related and should not immediately
+// tear down a live host session.
+const MP_HOST_TRANSIENT_ERROR_TYPES = new Set([
+  'network', 'server-error', 'socket-error', 'socket-closed',
+]);
 
 const MP_PROFILE_STORAGE_KEY = 'bakari_mp_profile';
 const MP_SESSION_STORAGE_KEY = 'bakari_mp_session_v1';
@@ -157,6 +166,7 @@ const mpConnections = {};
 // Guest side: single DataConnection to host
 let mpHostConn = null;
 let mpHostCreateTimer = null;
+let mpHostSignalingReconnectTimer = null;
 let mpGuestPeerOpenTimer = null;
 let mpGuestConnOpenTimer = null;
 let mpGuestWelcomeTimer = null;
@@ -170,6 +180,12 @@ const mpGuestRecovery = {
   maxAttempts: MP_RECONNECT_MAX_ATTEMPTS,
   manualOnly: false,
   reason: '',
+};
+
+// Host-side signaling recovery state.
+const mpHostRecovery = {
+  state: 'connected', // connected | reconnecting | disconnected
+  attempt: 0,
 };
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -271,11 +287,13 @@ function mpRenderQrCode(container, text) {
 
 function mpClearConnectionTimers() {
   clearTimeout(mpHostCreateTimer);
+  clearTimeout(mpHostSignalingReconnectTimer);
   clearTimeout(mpGuestPeerOpenTimer);
   clearTimeout(mpGuestConnOpenTimer);
   clearTimeout(mpGuestWelcomeTimer);
   clearTimeout(mpGuestReconnectTimer);
   mpHostCreateTimer = null;
+  mpHostSignalingReconnectTimer = null;
   mpGuestPeerOpenTimer = null;
   mpGuestConnOpenTimer = null;
   mpGuestWelcomeTimer = null;
@@ -301,6 +319,8 @@ function mpResetState(options = {}) {
   mpGuestRecovery.attempt = 0;
   mpGuestRecovery.manualOnly = false;
   mpGuestRecovery.reason = '';
+  mpHostRecovery.state = 'connected';
+  mpHostRecovery.attempt = 0;
   if (!keepSessionSnapshot) mpClearSessionSnapshot();
 
   document.body.classList.remove('mp-active');
@@ -380,21 +400,29 @@ function mpHostCreate(profile) {
 
   mpPeer.on('open', (id) => {
     clearTimeout(mpHostCreateTimer);
+    clearTimeout(mpHostSignalingReconnectTimer);
     mpHostCreateTimer = null;
+    mpHostSignalingReconnectTimer = null;
     mpSession.hostPeerId = id;
     mpSession.myPeerId = id;
     mpSession.myProfile.peerId = id;
     mpSession.players[0].peerId = id;
     mpSaveSessionSnapshot();
-    mpRenderLobbyHost();
+    // Recovery succeeded (covers both initial open and reconnect).
+    if (mpHostRecovery.state !== 'connected') {
+      mpHostRecovery.state = 'connected';
+      mpHostRecovery.attempt = 0;
+    }
+    if (mpSession.status === 'lobby') mpRenderLobbyHost();
   });
 
   mpPeer.on('connection', mpHostOnConnection);
 
   mpPeer.on('disconnected', () => {
-    try {
-      if (mpPeer) mpPeer.reconnect();
-    } catch (_) {}
+    // Signaling connection dropped — attempt recovery before declaring failure.
+    if (mpSession && mpSession.mode === 'host') {
+      mpHostBeginSignalingRecovery();
+    }
   });
 
   mpPeer.on('error', (err) => {
@@ -407,12 +435,79 @@ function mpHostCreate(profile) {
       mpHostCreate(profile);
       return;
     }
+    // Transient signaling errors: attempt recovery rather than hard reset.
+    if (mpSession && mpSession.mode === 'host' && MP_HOST_TRANSIENT_ERROR_TYPES.has(err.type)) {
+      mpHostBeginSignalingRecovery();
+      return;
+    }
     mpFailAndReset('Connection error: ' + (err.message || err.type));
   });
 
   // Show loading state
   mpRenderLobbyLoading();
   document.body.classList.add('mp-active');
+}
+
+// ─── Host: signaling recovery ─────────────────────────────────────────────────
+
+function mpHostBeginSignalingRecovery() {
+  if (!mpSession || mpSession.mode !== 'host') return;
+  // Already recovering — don't stack attempts.
+  if (mpHostRecovery.state === 'reconnecting') return;
+
+  mpHostRecovery.state = 'reconnecting';
+  mpHostRecovery.attempt = 0;
+  mpHostScheduleSignalingReconnect(0);
+
+  // Show reconnecting UI only if the lobby modal is currently visible.
+  if (mpSession.status === 'lobby') {
+    mpRenderLobbyHostReconnecting();
+  }
+}
+
+function mpHostScheduleSignalingReconnect(delayMs) {
+  clearTimeout(mpHostSignalingReconnectTimer);
+  mpHostSignalingReconnectTimer = setTimeout(() => {
+    mpHostSignalingReconnectTimer = null;
+    mpHostAttemptSignalingReconnect();
+  }, delayMs);
+}
+
+function mpHostAttemptSignalingReconnect() {
+  if (!mpSession || mpSession.mode !== 'host' || mpHostRecovery.state !== 'reconnecting') return;
+  if (!mpPeer || mpPeer.destroyed) {
+    mpHostRecovery.state = 'disconnected';
+    if (mpSession.status === 'lobby') mpRenderLobbyHostReconnecting();
+    return;
+  }
+
+  // PeerJS peer.reconnect() re-opens the signaling socket.
+  // Success is handled by the existing peer 'open' event handler.
+  try {
+    mpPeer.reconnect();
+  } catch (_) {}
+
+  mpHostRecovery.attempt += 1;
+
+  // Give the reconnect a short window; if still not recovered, schedule a retry.
+  mpHostSignalingReconnectTimer = setTimeout(() => {
+    mpHostSignalingReconnectTimer = null;
+    if (!mpSession || mpSession.mode !== 'host') return;
+    // If the 'open' event already handled success, state will be 'connected'.
+    if (mpHostRecovery.state !== 'reconnecting') return;
+
+    // Still disconnected — schedule next attempt if within budget.
+    if (mpHostRecovery.attempt < MP_HOST_SIGNALING_RECONNECT_MAX) {
+      const delay = MP_HOST_SIGNALING_BACKOFF_MS[
+        Math.min(mpHostRecovery.attempt, MP_HOST_SIGNALING_BACKOFF_MS.length - 1)
+      ];
+      mpHostScheduleSignalingReconnect(delay);
+      if (mpSession.status === 'lobby') mpRenderLobbyHostReconnecting();
+    } else {
+      mpHostRecovery.state = 'disconnected';
+      if (mpSession.status === 'lobby') mpRenderLobbyHostReconnecting();
+    }
+  }, MP_HOST_SIGNALING_ATTEMPT_WINDOW_MS);
 }
 
 function mpHostOnConnection(conn) {
@@ -1551,6 +1646,47 @@ function mpQrShowFallback(container) {
   container.innerHTML = '<p class="mp-qr-fallback">Could not render the QR code.<br>Refresh the page and reopen multiplayer.</p>';
 }
 
+function mpRenderLobbyHostReconnecting() {
+  if (!mpSession) return;
+
+  const isRetrying = mpHostRecovery.state === 'reconnecting';
+  const statusText = isRetrying
+    ? `Reconnecting to multiplayer network… (attempt ${mpHostRecovery.attempt + 1} of ${MP_HOST_SIGNALING_RECONNECT_MAX})`
+    : 'Could not reconnect to the multiplayer network.';
+
+  const playersHtml = mpSession.players.map((p) => `
+    <div class="mp-lobby-player-row">
+      <span class="mp-lobby-dot" style="background:${mpEscape(p.color)}"></span>
+      <span>${mpEscape(p.icon)}</span>
+      <span class="mp-lobby-name">${mpEscape(p.name)}</span>
+      ${p.isHost ? '<span class="mp-lobby-badge">Host (you)</span>' : '<span class="mp-lobby-badge">Guest</span>'}
+    </div>
+  `).join('');
+
+  mpModalContentEl.innerHTML = `
+    <h2 class="mp-section-title">Multiplayer Lobby</h2>
+    <div class="mp-reconnect-panel">
+      <div class="mp-reconnect-text">${mpEscape(statusText)}</div>
+      <div class="mp-reconnect-actions">
+        <button id="mp-host-retry-btn" class="mp-btn-secondary"${isRetrying ? ' disabled' : ''}>Retry now</button>
+        <button id="mp-host-leave-btn" class="mp-btn-secondary">Leave</button>
+      </div>
+    </div>
+    <div class="mp-lobby-players">${playersHtml}</div>
+  `;
+  mpShowModal();
+
+  document.getElementById('mp-host-retry-btn').addEventListener('click', () => {
+    if (mpHostRecovery.state === 'reconnecting') return;
+    // Reset to allow mpHostBeginSignalingRecovery to start a fresh cycle.
+    mpHostRecovery.state = 'connected';
+    mpHostBeginSignalingRecovery();
+  });
+  document.getElementById('mp-host-leave-btn').addEventListener('click', () => {
+    mpLeave();
+  });
+}
+
 function mpRenderLobbyHost() {
   if (!mpSession) return;
 
@@ -2040,7 +2176,11 @@ function mpInit() {
       if (mpSession) {
         // Already in a session: show current state
         if (mpSession.status === 'lobby' && mpSession.mode === 'host') {
-          mpRenderLobbyHost();
+          if (mpHostRecovery.state !== 'connected') {
+            mpRenderLobbyHostReconnecting();
+          } else {
+            mpRenderLobbyHost();
+          }
         } else if (mpSession.status === 'lobby' && mpSession.mode === 'guest') {
           mpRenderLobbyGuestWaiting();
         } else if (mpSession.status === 'finished') {
@@ -2067,6 +2207,10 @@ function mpInit() {
       mpGuestRecovery.manualOnly = false;
       mpGuestScheduleReconnect(0);
     }
+    if (mpSession && mpSession.mode === 'host' && mpHostRecovery.state !== 'connected') {
+      mpHostRecovery.attempt = 0;
+      mpHostBeginSignalingRecovery();
+    }
   });
   window.addEventListener('offline', () => {
     if (mpSession && mpSession.mode === 'guest') {
@@ -2080,6 +2224,12 @@ function mpInit() {
     if (!document.hidden && mpSession && mpSession.mode === 'guest' && mpGuestRecovery.state !== 'connected') {
       mpGuestRecovery.manualOnly = false;
       mpGuestScheduleReconnect(0);
+    }
+    // Host: on returning to foreground, check if signaling is still alive.
+    if (!document.hidden && mpSession && mpSession.mode === 'host') {
+      if (mpPeer && (mpPeer.disconnected || mpPeer.destroyed)) {
+        mpHostBeginSignalingRecovery();
+      }
     }
   });
 
