@@ -81,6 +81,45 @@
   text-decoration: line-through;
 }
 
+.mp-player-chip.reconnecting {
+  border-color: #e6a700;
+  box-shadow: 0 0 0 2px rgba(230, 167, 0, 0.2);
+}
+
+.mp-conn-pill {
+  margin-left: 0.25rem;
+  font-size: 0.65rem;
+  color: #7a5b00;
+  background: #fff1c7;
+  border-radius: 999px;
+  padding: 0.05rem 0.35rem;
+}
+
+.mp-reconnect-panel {
+  border: 1px solid #f1d58b;
+  background: #fff9e6;
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mp-reconnect-text {
+  font-size: 0.77rem;
+  color: #5e4a00;
+  text-align: center;
+}
+
+.mp-reconnect-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.mp-reconnect-actions button {
+  flex: 1;
+}
+
 .mp-player-dot {
   width: 10px;
   height: 10px;
