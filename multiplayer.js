@@ -821,6 +821,7 @@ function mpHostCommitMove(playerId, row, col) {
 
   // Track attribution
   mpSession.revealedBy[`${row}-${col}`] = playerId;
+  mpSession.lastMoveCell = { row, col, playerId };
 
   // Update player stats
   const pIdx = mpSession.players.findIndex((p) => p.id === playerId);
@@ -886,6 +887,7 @@ function mpHostRematch() {
   mpSession.status = 'playing';
   mpSession.currentTurnIdx = 0;
   mpSession.revealedBy = {};
+  mpSession.lastMoveCell = null;
   mpSession.winner = null;
   mpSession.waitingForMoveConfirm = false;
   mpSession.players.forEach((p) => { p.score = 0; p.totalMoves = 0; });
@@ -1339,6 +1341,7 @@ function mpGuestApplyGameStart(data) {
   mpSession.status = 'playing';
   mpSession.currentTurnIdx = 0;
   mpSession.revealedBy = {};
+  mpSession.lastMoveCell = null;
   mpSession.winner = null;
   mpSession.waitingForMoveConfirm = false;
 
@@ -1373,6 +1376,7 @@ function mpGuestApplyMoveCommitted(data) {
     totalMoves += 1; // game.js global
 
     mpSession.revealedBy[`${data.row}-${data.col}`] = data.playerId;
+    mpSession.lastMoveCell = { row: data.row, col: data.col, playerId: data.playerId };
   }
 
   // Sync player stats
@@ -1493,6 +1497,17 @@ window.mpGetCellAttribution = function mpGetCellAttribution(row, col) {
   const playerId = mpSession.revealedBy[`${row}-${col}`];
   if (!playerId) return null;
   return mpSession.players.find((p) => p.id === playerId) || null;
+};
+
+/**
+ * Returns the most recent move in a multiplayer session.
+ * Returns { row, col, playerColor } or null if not in multiplayer.
+ */
+window.mpGetLastMove = function mpGetLastMove() {
+  if (!mpSession || !mpSession.lastMoveCell) return null;
+  const { row, col, playerId } = mpSession.lastMoveCell;
+  const player = mpSession.players.find((p) => p.id === playerId);
+  return { row, col, playerColor: player ? player.color : null };
 };
 
 // ─── Leave / cleanup ──────────────────────────────────────────────────────────

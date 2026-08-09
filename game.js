@@ -36,6 +36,7 @@ let hintCellKey = null;
 let currentGoatFaceAsset = GOAT_FACE_OPTIONS[0];
 let elapsedSeconds = 0;
 let timerIntervalId = null;
+let lastMoveCell = null; // { row, col } of the most recently revealed cell
 
 function xmur3(str) {
   let h = 1779033703 ^ str.length;
@@ -225,6 +226,7 @@ function resetState() {
   totalMoves = 0;
   won = false;
   hintCellKey = null;
+  lastMoveCell = null;
   elapsedSeconds = 0;
   boardEl.classList.remove('win');
   winBannerEl.classList.remove('show');
@@ -329,6 +331,7 @@ function onCellClick(row, col) {
   revealed[row][col] = true;
   totalMoves += 1;
   hintCellKey = null;
+  lastMoveCell = { row, col };
 
   if (isGoat(row, col)) {
     foundGoats += 1;
@@ -430,6 +433,15 @@ function renderBoard() {
           dot.className = 'cell-player-dot';
           dot.style.background = attributedPlayer.color;
           cell.appendChild(dot);
+        }
+      }
+
+      // Last-move indicator: pulse + persistent outline on most recent cell
+      const lastMove = (window.mpGetLastMove && window.mpGetLastMove()) || lastMoveCell;
+      if (isRevealed && lastMove && lastMove.row === row && lastMove.col === col) {
+        cell.classList.add('last-move');
+        if (lastMove.playerColor) {
+          cell.style.setProperty('--last-move-color', lastMove.playerColor);
         }
       }
 
