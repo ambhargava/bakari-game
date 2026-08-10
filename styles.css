@@ -193,10 +193,9 @@ button:active {
 }
 
 .cell.last-move {
-  --last-move-color: #6a6ff5;
-  animation: last-move-pulse 350ms ease-out forwards;
-  outline: 2.5px solid var(--last-move-color);
-  outline-offset: -2.5px;
+  animation: last-move-pulse 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  outline: 4px solid #000;
+  outline-offset: -4px;
 }
 
 .win-banner {
@@ -319,13 +318,13 @@ button:active {
 
 @keyframes last-move-pulse {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--last-move-color, #6a6ff5) 70%, transparent);
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.72), inset 0 0 0 1px rgba(255, 255, 255, 0.78);
   }
-  40% {
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--last-move-color, #6a6ff5) 30%, transparent);
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 0, 0, 0.32), 0 0 16px rgba(0, 0, 0, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.78);
   }
   100% {
-    box-shadow: 0 0 0 7px color-mix(in srgb, var(--last-move-color, #6a6ff5) 0%, transparent);
+    box-shadow: 0 0 0 12px rgba(0, 0, 0, 0), 0 0 20px rgba(0, 0, 0, 0), inset 0 0 0 1px rgba(255, 255, 255, 0.78);
   }
 }
 

@@ -440,9 +440,6 @@ function renderBoard() {
       const lastMove = (window.mpGetLastMove && window.mpGetLastMove()) || lastMoveCell;
       if (isRevealed && lastMove && lastMove.row === row && lastMove.col === col) {
         cell.classList.add('last-move');
-        if (lastMove.playerColor) {
-          cell.style.setProperty('--last-move-color', lastMove.playerColor);
-        }
       }
 
       cell.addEventListener('click', () => onCellClick(row, col));
