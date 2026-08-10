@@ -192,6 +192,13 @@ button:active {
   outline-offset: -3px;
 }
 
+.cell.last-move {
+  --last-move-color: #6a6ff5;
+  animation: last-move-pulse 350ms ease-out forwards;
+  outline: 2.5px solid var(--last-move-color);
+  outline-offset: -2.5px;
+}
+
 .win-banner {
   position: absolute;
   left: 50%;
@@ -307,6 +314,18 @@ button:active {
   }
   to {
     transform: scale(1);
+  }
+}
+
+@keyframes last-move-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--last-move-color, #6a6ff5) 70%, transparent);
+  }
+  40% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--last-move-color, #6a6ff5) 30%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--last-move-color, #6a6ff5) 0%, transparent);
   }
 }
 
