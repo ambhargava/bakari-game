@@ -43,7 +43,7 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MP_PEER_PREFIX = 'bakari-';
-const MP_VERSION = 3;
+const MP_VERSION = '0.5.11';
 const MP_QR_SIZE = 200;
 const MP_PEER_OPEN_TIMEOUT_MS = 12000;
 const MP_CONN_OPEN_TIMEOUT_MS = 12000;
@@ -100,7 +100,7 @@ function mpSaveSessionSnapshot() {
   if (!mpSession) return;
   try {
     const snapshot = {
-      version: 1,
+      version: '0.5.11',
       role: mpSession.mode,
       hostPeerId: mpSession.hostPeerId || null,
       matchId: mpSession.matchId || null,
@@ -628,7 +628,7 @@ function mpHostOnData(peerId, data) {
 
 function mpHostHandleJoin(peerId, data) {
   const conn = mpConnections[peerId];
-  const guestVersion = Number(data && data.version);
+  const guestVersion = data && data.version;
   if (guestVersion !== MP_VERSION) {
     if (conn) {
       mpSend(conn, {
@@ -1305,7 +1305,7 @@ function mpGuestOnData(data) {
 function mpGuestApplyWelcome(data) {
   clearTimeout(mpGuestWelcomeTimer);
   mpGuestWelcomeTimer = null;
-  if (Number(data.version) !== MP_VERSION) {
+  if (data.version !== MP_VERSION) {
     mpFailAndReset('This join link opened a different Bakari version. Refresh both devices and try again.');
     return;
   }
@@ -2066,7 +2066,7 @@ function mpGuestSetup(hostPeerId) {
     conn.on('data', (data) => {
       if (!peeked && data.type === 'welcome') {
         peeked = true;
-        if (Number(data.version) !== MP_VERSION) {
+        if (data.version !== MP_VERSION) {
           mpFailAndReset(
             'This join link opened a different Bakari version. Refresh both devices and try again.',
           );
