@@ -43,7 +43,7 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MP_PEER_PREFIX = 'bakari-';
-const MP_VERSION = '0.5.11';
+const MP_VERSION = '0.5.12';
 const MP_QR_SIZE = 200;
 const MP_PEER_OPEN_TIMEOUT_MS = 12000;
 const MP_CONN_OPEN_TIMEOUT_MS = 12000;
@@ -100,7 +100,7 @@ function mpSaveSessionSnapshot() {
   if (!mpSession) return;
   try {
     const snapshot = {
-      version: '0.5.11',
+      version: '0.5.12',
       role: mpSession.mode,
       hostPeerId: mpSession.hostPeerId || null,
       matchId: mpSession.matchId || null,
@@ -1501,13 +1501,12 @@ window.mpGetCellAttribution = function mpGetCellAttribution(row, col) {
 
 /**
  * Returns the most recent move in a multiplayer session.
- * Returns { row, col, playerColor } or null if not in multiplayer.
+ * Returns { row, col } or null if not in multiplayer.
  */
 window.mpGetLastMove = function mpGetLastMove() {
   if (!mpSession || !mpSession.lastMoveCell) return null;
-  const { row, col, playerId } = mpSession.lastMoveCell;
-  const player = mpSession.players.find((p) => p.id === playerId);
-  return { row, col, playerColor: player ? player.color : null };
+  const { row, col } = mpSession.lastMoveCell;
+  return { row, col };
 };
 
 // ─── Leave / cleanup ──────────────────────────────────────────────────────────
