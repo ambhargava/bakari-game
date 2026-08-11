@@ -97,7 +97,9 @@ Bakari supports **live local multiplayer** for 2–8 players using browser-based
 - Requires **HTTPS** (or `localhost`) — WebRTC does not work on plain HTTP in modern browsers. GitHub Pages deployments work automatically.
 - Requires the **PeerJS cloud signalling server** to be reachable for the initial connection. The server is only used for the WebRTC handshake; no game data passes through it.
 - If the **host closes their browser** the session ends for all guests.
-- Guests now auto-attempt reconnect (bounded backoff) after transient interruptions, and can also use manual **Retry now** / **Leave match** controls.
+- A guest move waits up to 7 seconds for host confirmation. If it is not confirmed, the guest automatically reconnects and fully re-syncs with the host up to three times for that move, safely retrying only when the authoritative state still permits it.
+- After those three move recovery attempts, the affected guest can use **Retry move** after moving to a stronger connection; **Leave match** remains available.
+- Guests also auto-attempt reconnect (bounded backoff) after other transient interruptions, and can use manual **Retry now** / **Leave match** controls.
 - Disconnected players keep their slot for a short grace period so they can resume as the same player identity; host state is re-synced on successful resume.
 
 ## Run locally

@@ -160,7 +160,8 @@ function mpClearSessionSnapshot() {
  *   currentTurnIdx: number,
  *   revealedBy: { [cellKey: string]: string },  — cellKey = "row-col"
  *   winner: Player | null,
- *   waitingForMoveConfirm: boolean,  — guest only
+ *   pendingMove: { moveId, row, col, sentAt, recoveryAttempts } | null,
+ *   waitingForMoveConfirm: boolean,  — legacy compatibility mirror for guests
  * }
  *
  * Player: { id, name, color, icon, score, totalMoves, isConnected, isHost }
@@ -181,6 +182,7 @@ let mpGuestPeerOpenTimer = null;
 let mpGuestConnOpenTimer = null;
 let mpGuestWelcomeTimer = null;
 let mpGuestReconnectTimer = null;
+let mpMoveConfirmTimer = null;
 
 const mpGraceTimers = {};
 
@@ -308,6 +310,8 @@ function mpClearConnectionTimers() {
   mpGuestConnOpenTimer = null;
   mpGuestWelcomeTimer = null;
   mpGuestReconnectTimer = null;
+  clearTimeout(mpMoveConfirmTimer);
+  mpMoveConfirmTimer = null;
 }
 
 function mpResetState(options = {}) {
@@ -367,6 +371,79 @@ function mpSendToHost(msg) {
   mpSend(mpHostConn, msg);
 }
 
+function mpClearPendingMove(resetRecovery = true) {
+  clearTimeout(mpMoveConfirmTimer);
+  mpMoveConfirmTimer = null;
+  if (mpSession) {
+    mpSession.pendingMove = null;
+    mpSession.waitingForMoveConfirm = false;
+  }
+  if (resetRecovery) {
+    mpGuestRecovery.attempt = 0;
+    mpGuestRecovery.maxAttempts = MP_RECONNECT_MAX_ATTEMPTS;
+    mpGuestRecovery.manualOnly = false;
+  }
+}
+
+function mpStartMoveConfirmation(moveId) {
+  clearTimeout(mpMoveConfirmTimer);
+  mpMoveConfirmTimer = setTimeout(() => {
+    if (!mpSession || !mpSession.pendingMove || mpSession.pendingMove.moveId !== moveId) return;
+    console.warn('[MP] move confirmation timeout', { moveId });
+    mpRecoverPendingMove('Move was not confirmed by the host.');
+  }, MP_MOVE_CONFIRM_TIMEOUT_MS);
+}
+
+function mpSendPendingMove() {
+  const pending = mpSession && mpSession.pendingMove;
+  if (!pending || !mpHostConn || !mpHostConn.open) return false;
+  pending.sentAt = Date.now();
+  mpSession.waitingForMoveConfirm = true;
+  console.log('[MP] move sent', { moveId: pending.moveId, row: pending.row, col: pending.col });
+  mpSendToHost({ type: 'move', moveId: pending.moveId, row: pending.row, col: pending.col });
+  mpStartMoveConfirmation(pending.moveId);
+  mpUpdateInGameUI();
+  return true;
+}
+
+function mpRecoverPendingMove(reason) {
+  const pending = mpSession && mpSession.pendingMove;
+  if (!pending || mpSession.mode !== 'guest') return;
+  clearTimeout(mpMoveConfirmTimer);
+  mpMoveConfirmTimer = null;
+  if (pending.recoveryInProgress) return;
+  if (pending.recoveryAttempts >= MP_MOVE_RECOVERY_MAX_ATTEMPTS) {
+    mpSession.waitingForMoveConfirm = false;
+    mpGuestRecovery.state = 'disconnected';
+    mpGuestRecovery.manualOnly = true;
+    mpGuestRecovery.reason = 'Move could not be confirmed. Move to a stronger connection, then retry.';
+    mpUpdateInGameUI();
+    return;
+  }
+  pending.recoveryInProgress = true;
+  pending.recoveryAttempts += 1;
+  mpSession.waitingForMoveConfirm = false;
+  console.log('[MP] move recovery attempt', { moveId: pending.moveId, attempt: pending.recoveryAttempts });
+  mpGuestRecovery.attempt = 0;
+  mpGuestRecovery.maxAttempts = 1;
+  mpGuestRecovery.manualOnly = false;
+  mpGuestBeginRecovery(`${reason} Reconnecting and syncing move (${pending.recoveryAttempts}/${MP_MOVE_RECOVERY_MAX_ATTEMPTS})…`);
+}
+
+function mpHandleGuestReconnectExhausted(reason) {
+  const pending = mpSession && mpSession.pendingMove;
+  if (pending && pending.recoveryInProgress) {
+    pending.recoveryInProgress = false;
+    mpGuestRecovery.maxAttempts = MP_RECONNECT_MAX_ATTEMPTS;
+    mpRecoverPendingMove(reason);
+    return;
+  }
+  mpGuestRecovery.state = 'disconnected';
+  mpGuestRecovery.manualOnly = true;
+  mpGuestRecovery.reason = reason;
+  mpUpdateInGameUI();
+}
+
 // ─── Host: session creation ───────────────────────────────────────────────────
 
 function mpHostCreate(profile) {
@@ -390,7 +467,10 @@ function mpHostCreate(profile) {
     status: 'lobby',
     currentTurnIdx: 0,
     revealedBy: {},
+    processedMoveIds: {},
     winner: null,
+    pendingMove: null,
+    processedMoveIds: {},
     waitingForMoveConfirm: false,
   };
 
@@ -622,10 +702,12 @@ function mpHostOnData(peerId, data) {
       break;
     case 'move':
       mpHostHandleMove(
+        peerId,
         (mpConnections[peerId] && mpConnections[peerId].__bakariPlayerId)
           || (mpSession.players.find((p) => p.peerId === peerId) || {}).id,
         data.row,
         data.col,
+        data.moveId,
       );
       break;
     case 'resync_request':
@@ -809,17 +891,56 @@ function mpHostStartGame() {
   mpSaveSessionSnapshot();
 }
 
-function mpHostHandleMove(playerId, row, col) {
-  if (mpSession.status !== 'playing') return;
-  if (!playerId) return;
-
-  const currentPlayer = mpSession.players[mpSession.currentTurnIdx];
-  if (!currentPlayer || currentPlayer.id !== playerId) return; // not your turn
-
-  mpHostCommitMove(playerId, row, col);
+function mpHostRejectMove(peerId, moveId, reason, message) {
+  console.warn('[MP] host rejected move', { moveId, reason });
+  mpSend(mpConnections[peerId], { type: 'move_rejected', moveId: moveId || null, reason, message });
+  mpHostSendResync(peerId);
 }
 
-function mpHostCommitMove(playerId, row, col) {
+function mpHostHandleMove(peerId, playerId, row, col, moveId) {
+  console.log('[MP] host received move', { moveId, row, col });
+  if (!moveId || typeof moveId !== 'string') {
+    mpHostRejectMove(peerId, moveId, 'invalid_move_id', 'The move did not include a valid ID. Please retry.');
+    return;
+  }
+  const priorMove = mpSession.processedMoveIds && mpSession.processedMoveIds[moveId];
+  if (priorMove) {
+    if (priorMove.playerId === playerId) {
+      console.log('[MP] host repeated committed move', { moveId });
+      mpSend(mpConnections[peerId], priorMove);
+    } else {
+      mpHostRejectMove(peerId, moveId, 'duplicate_move_id', 'This move ID was already used.');
+    }
+    return;
+  }
+  if (mpSession.status !== 'playing') {
+    mpHostRejectMove(peerId, moveId, 'not_playing', 'The game is not currently playing.');
+    return;
+  }
+  if (!playerId || !mpSession.players.some((p) => p.id === playerId)) {
+    mpHostRejectMove(peerId, moveId, 'invalid_player', 'Your player session could not be verified.');
+    return;
+  }
+  if (!Number.isInteger(row) || !Number.isInteger(col)
+      || !puzzle || row < 0 || col < 0 || row >= puzzle.size || col >= puzzle.size) {
+    mpHostRejectMove(peerId, moveId, 'invalid_cell', 'That cell is outside the board.');
+    return;
+  }
+
+  const currentPlayer = mpSession.players[mpSession.currentTurnIdx];
+  if (!currentPlayer || currentPlayer.id !== playerId) {
+    mpHostRejectMove(peerId, moveId, 'not_your_turn', 'It is no longer your turn.');
+    return;
+  }
+  if (revealed[row][col]) {
+    mpHostRejectMove(peerId, moveId, 'already_revealed', 'That cell has already been revealed.');
+    return;
+  }
+
+  mpHostCommitMove(playerId, row, col, moveId);
+}
+
+function mpHostCommitMove(playerId, row, col, moveId = null) {
   // Validate cell not already revealed
   if (revealed[row][col]) return; // game.js global
 
@@ -847,6 +968,7 @@ function mpHostCommitMove(playerId, row, col) {
   // Broadcast committed move to all guests
   const moveMsg = {
     type: 'move_committed',
+    moveId,
     playerId,
     row,
     col,
@@ -854,6 +976,8 @@ function mpHostCommitMove(playerId, row, col) {
     nextTurnPlayerId: nextPlayer.id,
     players: mpSession.players,
   };
+  if (moveId) mpSession.processedMoveIds[moveId] = moveMsg;
+  console.log('[MP] host committed move', { moveId, row, col });
   mpBroadcast(moveMsg);
 
   // Re-render
@@ -899,6 +1023,8 @@ function mpHostRematch() {
   mpSession.revealedBy = {};
   mpSession.lastMoveCell = null;
   mpSession.winner = null;
+  mpSession.processedMoveIds = {};
+  mpClearPendingMove();
   mpSession.waitingForMoveConfirm = false;
   mpSession.players.forEach((p) => { p.score = 0; p.totalMoves = 0; });
 
@@ -936,6 +1062,7 @@ function mpHostSendResync(peerId) {
     status: mpSession.status,
     currentTurnIdx: mpSession.currentTurnIdx,
     revealedBy: mpSession.revealedBy,
+    processedMoveIds: mpSession.processedMoveIds || {},
     revealedFlat: [],
     winnerId: mpSession.winner ? mpSession.winner.id : null,
     foundGoats,
@@ -1006,6 +1133,7 @@ function mpGuestConnect(hostPeerId, profile) {
       currentTurnIdx: 0,
       revealedBy: {},
       winner: null,
+      pendingMove: null,
       waitingForMoveConfirm: false,
     };
     mpSession.myProfile.resumeToken = resumeToken;
@@ -1104,8 +1232,7 @@ function mpGuestAttemptReconnect() {
   }
 
   if (mpGuestRecovery.attempt >= mpGuestRecovery.maxAttempts && mpGuestRecovery.manualOnly) {
-    mpGuestRecovery.state = 'disconnected';
-    mpUpdateInGameUI();
+    mpHandleGuestReconnectExhausted(mpGuestRecovery.reason || 'Could not reconnect automatically.');
     return;
   }
 
@@ -1140,9 +1267,7 @@ function mpGuestAttemptReconnect() {
     const backoff = MP_RECONNECT_BACKOFF_MS[Math.min(mpGuestRecovery.attempt, MP_RECONNECT_BACKOFF_MS.length - 1)];
     mpGuestRecovery.manualOnly = mpGuestRecovery.attempt >= mpGuestRecovery.maxAttempts;
     if (mpGuestRecovery.manualOnly) {
-      mpGuestRecovery.state = 'disconnected';
-      mpGuestRecovery.reason = 'Could not reconnect automatically.';
-      mpUpdateInGameUI();
+      mpHandleGuestReconnectExhausted('Could not reconnect automatically.');
       return;
     }
     mpGuestScheduleReconnect(backoff);
@@ -1157,9 +1282,7 @@ function mpGuestAttemptReconnect() {
       const backoff = MP_RECONNECT_BACKOFF_MS[Math.min(mpGuestRecovery.attempt, MP_RECONNECT_BACKOFF_MS.length - 1)];
       mpGuestRecovery.manualOnly = mpGuestRecovery.attempt >= mpGuestRecovery.maxAttempts;
       if (mpGuestRecovery.manualOnly) {
-        mpGuestRecovery.state = 'disconnected';
-        mpGuestRecovery.reason = 'Could not reconnect automatically.';
-        mpUpdateInGameUI();
+        mpHandleGuestReconnectExhausted('Could not reconnect automatically.');
         return;
       }
       mpGuestScheduleReconnect(backoff);
@@ -1187,9 +1310,7 @@ function mpGuestAttemptReconnect() {
         const backoff = MP_RECONNECT_BACKOFF_MS[Math.min(mpGuestRecovery.attempt, MP_RECONNECT_BACKOFF_MS.length - 1)];
         mpGuestRecovery.manualOnly = mpGuestRecovery.attempt >= mpGuestRecovery.maxAttempts;
         if (mpGuestRecovery.manualOnly) {
-          mpGuestRecovery.state = 'disconnected';
-          mpGuestRecovery.reason = 'Reconnect timed out.';
-          mpUpdateInGameUI();
+          mpHandleGuestReconnectExhausted('Reconnect timed out.');
           return;
         }
         mpGuestScheduleReconnect(backoff);
@@ -1211,9 +1332,7 @@ function mpGuestAttemptReconnect() {
     const backoff = MP_RECONNECT_BACKOFF_MS[Math.min(mpGuestRecovery.attempt, MP_RECONNECT_BACKOFF_MS.length - 1)];
     mpGuestRecovery.manualOnly = mpGuestRecovery.attempt >= mpGuestRecovery.maxAttempts;
     if (mpGuestRecovery.manualOnly) {
-      mpGuestRecovery.state = 'disconnected';
-      mpGuestRecovery.reason = 'Could not reconnect automatically.';
-      mpUpdateInGameUI();
+      mpHandleGuestReconnectExhausted('Could not reconnect automatically.');
       return;
     }
     mpGuestScheduleReconnect(backoff);
@@ -1301,6 +1420,9 @@ function mpGuestOnData(data) {
     case 'move_committed':
       mpGuestApplyMoveCommitted(data);
       break;
+    case 'move_rejected':
+      mpGuestApplyMoveRejected(data);
+      break;
     case 'game_finished':
       mpGuestApplyGameFinished(data);
       break;
@@ -1342,6 +1464,7 @@ function mpGuestApplyWelcome(data) {
   mpUpdateInGameUI();
   if (mpSession.status === 'playing') {
     mpSendToHost({ type: 'resync_request' });
+    if (mpSession.pendingMove) mpStartMoveConfirmation(mpSession.pendingMove.moveId);
   }
 }
 
@@ -1351,9 +1474,10 @@ function mpGuestApplyGameStart(data) {
   mpSession.status = 'playing';
   mpSession.currentTurnIdx = 0;
   mpSession.revealedBy = {};
+  mpSession.processedMoveIds = {};
   mpSession.lastMoveCell = null;
   mpSession.winner = null;
-  mpSession.waitingForMoveConfirm = false;
+  mpClearPendingMove();
 
   // On rematch, reset per-player stats so scores start fresh
   if (data.rematch) {
@@ -1377,7 +1501,11 @@ function mpGuestApplyGameStart(data) {
 }
 
 function mpGuestApplyMoveCommitted(data) {
-  mpSession.waitingForMoveConfirm = false;
+  const pending = mpSession.pendingMove;
+  if (pending && data.moveId === pending.moveId) {
+    console.log('[MP] move confirmed', { moveId: data.moveId });
+    mpClearPendingMove();
+  }
 
   if (data.row !== null && data.col !== null) {
     // Apply move to local state
@@ -1413,7 +1541,18 @@ function mpGuestApplyMoveCommitted(data) {
   mpUpdateInGameUI();
 }
 
+function mpGuestApplyMoveRejected(data) {
+  const pending = mpSession && mpSession.pendingMove;
+  if (!pending || data.moveId !== pending.moveId) return;
+  console.warn('[MP] move rejected', { moveId: data.moveId, reason: data.reason });
+  mpClearPendingMove();
+  mpGuestRecovery.state = 'connected';
+  mpGuestRecovery.reason = data.message || 'The host rejected that move.';
+  mpUpdateInGameUI();
+}
+
 function mpGuestApplyGameFinished(data) {
+  mpClearPendingMove();
   won = true; // game.js global
   stopTimer(); // game.js global
   mpSession.status = 'finished';
@@ -1427,6 +1566,8 @@ function mpGuestApplyGameFinished(data) {
 
 function mpGuestApplyResync(state) {
   if (!mpSession) return;
+  clearTimeout(mpMoveConfirmTimer);
+  mpMoveConfirmTimer = null;
   if (state.matchId) mpSession.matchId = state.matchId;
   if (state.hostPeerId) mpSession.hostPeerId = state.hostPeerId;
   if (state.seed && state.difficulty && (!puzzle || puzzle.seed !== state.seed || puzzle.difficulty !== state.difficulty)) {
@@ -1436,6 +1577,7 @@ function mpGuestApplyResync(state) {
   mpSession.status = state.status;
   mpSession.currentTurnIdx = state.currentTurnIdx;
   mpSession.revealedBy = state.revealedBy;
+  mpSession.processedMoveIds = state.processedMoveIds || {};
 
   // Reset and rebuild revealed array
   for (let r = 0; r < puzzle.size; r += 1) { // game.js global
@@ -1461,6 +1603,27 @@ function mpGuestApplyResync(state) {
 
   renderBoard(); // game.js global
   renderStats(); // game.js global
+  const pending = mpSession.pendingMove;
+  if (pending) {
+    pending.recoveryInProgress = false;
+    if (mpSession.processedMoveIds[pending.moveId]) {
+      console.log('[MP] resync found committed move', { moveId: pending.moveId });
+      mpClearPendingMove();
+    } else {
+      const currentPlayer = mpSession.players[mpSession.currentTurnIdx];
+      const stillEligible = mpSession.status === 'playing'
+        && currentPlayer && currentPlayer.id === mpSession.myId
+        && !revealed[pending.row][pending.col];
+      if (stillEligible && mpHostConn && mpHostConn.open) {
+        console.log('[MP] resync retrying pending move', { moveId: pending.moveId });
+        mpGuestRecovery.state = 'connected';
+        mpSendPendingMove();
+      } else {
+        console.warn('[MP] resync resolved pending move as unavailable', { moveId: pending.moveId });
+        mpClearPendingMove();
+      }
+    }
+  }
   mpUpdateInGameUI();
   mpSaveSessionSnapshot();
 }
@@ -1484,15 +1647,23 @@ window.mpHandleCellClick = function mpHandleCellClick(row, col) {
     return true; // consumed but no action
   }
 
-  // Don't allow a second click while waiting for host confirmation
-  if (mpSession.waitingForMoveConfirm) return true;
+  // Don't allow a second click while a guest move is being confirmed/recovered.
+  if (mpSession.pendingMove || mpSession.waitingForMoveConfirm) return true;
 
   if (mpSession.mode === 'host') {
     mpHostCommitMove(mpSession.myId, row, col);
   } else {
-    // Guest: propose move to host, wait for commit
-    mpSession.waitingForMoveConfirm = true;
-    mpSendToHost({ type: 'move', row, col });
+    mpSession.pendingMove = {
+      moveId: mpRandomId('move'),
+      row,
+      col,
+      sentAt: null,
+      recoveryAttempts: 0,
+      recoveryInProgress: false,
+    };
+    if (!mpSendPendingMove()) {
+      mpRecoverPendingMove('Connection to the host is unavailable.');
+    }
   }
 
   return true; // consumed
@@ -1618,6 +1789,13 @@ function mpUpdateInGameUI() {
     : '';
 
   let reconnectHtml = '';
+  if (mpSession.mode === 'guest' && mpSession.pendingMove && mpGuestRecovery.state === 'connected') {
+    reconnectHtml = `
+      <div class="mp-reconnect-panel">
+        <div class="mp-reconnect-text">Move pending — waiting for host confirmation…</div>
+      </div>
+    `;
+  }
   if (mpSession.mode === 'guest' && mpSession.status !== 'finished' && mpGuestRecovery.state !== 'connected') {
     const label = mpGuestRecovery.state === 'reconnecting'
       ? (mpGuestRecovery.reason || 'Reconnecting to host…')
@@ -1626,7 +1804,7 @@ function mpUpdateInGameUI() {
       <div class="mp-reconnect-panel">
         <div class="mp-reconnect-text">${mpEscape(label)}</div>
         <div class="mp-reconnect-actions">
-          <button id="mp-retry-now-btn" class="mp-btn-secondary">Retry now</button>
+          <button id="mp-retry-now-btn" class="mp-btn-secondary">${mpSession.pendingMove ? 'Retry move' : 'Retry now'}</button>
           <button id="mp-leave-match-btn" class="mp-btn-secondary">Leave match</button>
         </div>
       </div>
@@ -1643,9 +1821,19 @@ function mpUpdateInGameUI() {
   const retryBtn = document.getElementById('mp-retry-now-btn');
   if (retryBtn) {
     retryBtn.addEventListener('click', () => {
+      console.log('[MP] manual retry requested', {
+        moveId: mpSession.pendingMove && mpSession.pendingMove.moveId,
+      });
       mpGuestRecovery.manualOnly = false;
       mpGuestRecovery.attempt = 0;
-      mpGuestBeginRecovery('Manual reconnect requested…');
+      mpGuestRecovery.maxAttempts = MP_RECONNECT_MAX_ATTEMPTS;
+      if (mpSession.pendingMove) {
+        mpSession.pendingMove.recoveryAttempts = 0;
+        mpSession.pendingMove.recoveryInProgress = false;
+        mpRecoverPendingMove('Manual move retry requested.');
+      } else {
+        mpGuestBeginRecovery('Manual reconnect requested…');
+      }
     });
   }
   const leaveBtn = document.getElementById('mp-leave-match-btn');
