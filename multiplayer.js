@@ -16,7 +16,7 @@
  * ─────────────────────────────────────────────────────────
  *   guest → host
  *     join           { type, name, color, icon }
- *     move           { type, row, col }
+ *     move           { type, row, col, moveId }
  *     resync_request { type }
  *
  *   host → guest(s)
@@ -24,8 +24,12 @@
  *     player_joined   { type, player }
  *     player_left     { type, playerId }
  *     game_start      { type, seed, difficulty, turnOrder }
- *     move_committed  { type, playerId, row, col, isGoat,
+ *     move_committed  { type, moveId, playerId, row, col, isGoat,
  *                       nextTurnPlayerId, players }
+ *     move_rejected   { type, moveId, reason, message } — host could not
+ *                       accept a move (not your turn / already revealed /
+ *                       not playing / invalid); always followed by a
+ *                       resync_response so the guest can recover.
  *     game_finished   { type, winnerId, players }
  *     resync_response { type, state }
  *
@@ -43,7 +47,7 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MP_PEER_PREFIX = 'bakari-';
-const MP_VERSION = '0.5.12';
+const MP_VERSION = '0.5.13';
 const MP_QR_SIZE = 200;
 const MP_PEER_OPEN_TIMEOUT_MS = 12000;
 const MP_CONN_OPEN_TIMEOUT_MS = 12000;
@@ -54,6 +58,12 @@ const MP_RECONNECT_BACKOFF_MS = [0, 1500, 3000, 6000, 10000, 15000];
 const MP_HOST_SIGNALING_RECONNECT_MAX = 5;
 const MP_HOST_SIGNALING_BACKOFF_MS = [0, 2000, 5000, 10000, 20000];
 const MP_HOST_SIGNALING_ATTEMPT_WINDOW_MS = 3000;
+// A guest move must be committed (or rejected) by the host within this window,
+// otherwise the client treats it as lost and begins recovery.
+const MP_MOVE_CONFIRM_TIMEOUT_MS = 7000;
+// Number of automatic recovery/resync attempts allowed for a single stuck-move
+// incident before a manual "Retry move" action is required from the player.
+const MP_MOVE_RECOVERY_MAX_ATTEMPTS = 3;
 
 // Error types that are transient / signaling-related and should not immediately
 // tear down a live host session.
@@ -100,7 +110,7 @@ function mpSaveSessionSnapshot() {
   if (!mpSession) return;
   try {
     const snapshot = {
-      version: '0.5.12',
+      version: MP_VERSION,
       role: mpSession.mode,
       hostPeerId: mpSession.hostPeerId || null,
       matchId: mpSession.matchId || null,
