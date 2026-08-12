@@ -2399,17 +2399,20 @@ function mpInit() {
     });
   }
 
-  ['new-puzzle-btn', 'restart-btn', 'difficulty'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('click', () => {
-        if (!mpSession) mpSaveLastMode('single');
-      });
-      el.addEventListener('change', () => {
+  ['new-puzzle-btn', 'restart-btn'].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.addEventListener('click', () => {
         if (!mpSession) mpSaveLastMode('single');
       });
     }
   });
+  const difficultyEl = document.getElementById('difficulty');
+  if (difficultyEl) {
+    difficultyEl.addEventListener('change', () => {
+      if (!mpSession) mpSaveLastMode('single');
+    });
+  }
 
   // Close modal backdrop click
   const backdrop = document.getElementById('mp-modal-backdrop');
