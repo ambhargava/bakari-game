@@ -2149,7 +2149,7 @@ function mpRenderSetupForm(mode, hostPeerId, takenColors = []) {
 
   // Close button
   document.getElementById('mp-setup-close').addEventListener('click', () => {
-    mpSaveLastMode('single');
+    if (!mpSession) mpSaveLastMode('single');
     mpHideModal();
     if (mpSession) mpLeave();
   });
@@ -2180,7 +2180,7 @@ function mpGuestSetup(hostPeerId) {
   `;
   mpShowModal();
   document.getElementById('mp-guest-setup-close').addEventListener('click', () => {
-    mpSaveLastMode('single');
+    if (!mpSession) mpSaveLastMode('single');
     mpHideModal();
     if (mpSession) mpLeave();
   });
