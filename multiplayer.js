@@ -2378,7 +2378,6 @@ function mpInit() {
   const mpBtn = document.getElementById('mp-btn');
   if (mpBtn) {
     mpBtn.addEventListener('click', () => {
-      mpSaveLastMode('multiplayer');
       if (mpSession) {
         // Already in a session: show current state
         if (mpSession.status === 'lobby' && mpSession.mode === 'host') {
