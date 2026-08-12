@@ -1,7 +1,7 @@
 const DIFFICULTIES = {
-  easy: { label: 'Easy', size: 6 },
-  medium: { label: 'Medium', size: 8 },
-  hard: { label: 'Hard', size: 10 }
+  easy: { label: 'Easy (7×7)', size: 7 },
+  medium: { label: 'Medium (9×9)', size: 9 },
+  hard: { label: 'Hard (11×11)', size: 11 }
 };
 
 const GOAT_FACE = '🐐';
@@ -212,7 +212,8 @@ const REGION_COLORS = [
   '#ce93d8',
   '#f48fb1',
   '#bcaaa4',
-  '#b0bec5'
+  '#b0bec5',
+  '#80deea'
 ];
 
 function regionColor(regionId) {

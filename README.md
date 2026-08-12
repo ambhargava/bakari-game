@@ -19,13 +19,15 @@ Every generated puzzle follows these rules:
 3. Exactly one goat in each colored region.
 4. Goat cells are never adjacent (including diagonals).
 
+The region palette includes a new pastel cyan (`#80deea`) so the larger 11-region hard board has distinct region colours without cycling.
+
 ## Features
 
 - Deterministic seeded puzzle generation
 - Difficulty presets:
-  - Easy: 6×6
-  - Medium: 8×8
-  - Hard: 10×10
+  - Easy: 7×7 (7 goats)
+  - Medium: 9×9 (9 goats)
+  - Hard: 11×11 (11 goats)
 - New Puzzle button (new random seed)
 - Restart button (same puzzle/seed, clears reveals)
 - Hint button (deterministic single clue for one unrevealed goat)
@@ -58,7 +60,7 @@ Bakari supports **live local multiplayer** for 2–8 players using browser-based
 #### Host (starting a match)
 
 1. Click **Multiplayer** in the game panel.
-2. Enter your name and choose a colour and icon.
+2. Enter your name and choose a colour.
 3. Click **Create Match** — a QR code and a join link appear.
 4. Show your screen (or share the link) to other nearby players.
 5. Wait until all players have joined the lobby.
@@ -68,7 +70,7 @@ Bakari supports **live local multiplayer** for 2–8 players using browser-based
 
 1. Scan the QR code shown by the host (or open the shared link).
 2. The game opens in your browser with a **Join Multiplayer Match** form.
-3. Enter your name and pick a colour and icon.
+3. Enter your name and pick a colour.
 4. Click **Join** — you enter the lobby and wait for the host to start.
 
 #### During the game
@@ -76,10 +78,11 @@ Bakari supports **live local multiplayer** for 2–8 players using browser-based
 - All players share the same board (same seed and difficulty).
 - Players take turns in the order they joined; the current player's name is shown in the bar below the board.
 - Only the active player can reveal a cell on their turn; other players' clicks are silently ignored.
-- Each revealed cell shows a small coloured dot in its corner indicating which player revealed it.
+- Each player is identified by name and colour only; each revealed cell shows a small coloured dot in its corner indicating which player revealed it.
 - Stats (goats found, total moves, elapsed time) are shown in the standard stats bar.
 - The player who finds the most goats wins; ties are broken by fewest total moves.
 - When the game ends a final standings screen is shown.
+- Bakari remembers whether you last used single-player or multiplayer on the basic URL. A QR/join URL always takes precedence and opens the guest join flow. Remembered multiplayer opens/resumes safely without auto-creating a host match; stale resume state is cleared when it cannot be used.
 
 ### Architecture summary
 
