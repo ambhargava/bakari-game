@@ -2402,14 +2402,14 @@ function mpInit() {
     const btn = document.getElementById(id);
     if (btn) {
       btn.addEventListener('click', () => {
-        if (!mpSession) mpSaveLastMode('single');
+        mpSaveLastMode('single');
       });
     }
   });
   const difficultyEl = document.getElementById('difficulty');
   if (difficultyEl) {
     difficultyEl.addEventListener('change', () => {
-      if (!mpSession) mpSaveLastMode('single');
+      mpSaveLastMode('single');
     });
   }
 
