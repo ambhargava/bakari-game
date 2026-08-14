@@ -73,7 +73,6 @@ const MP_HOST_TRANSIENT_ERROR_TYPES = new Set([
 
 const MP_PROFILE_STORAGE_KEY = 'bakari_mp_profile';
 const MP_SESSION_STORAGE_KEY = 'bakari_mp_session_v1';
-const MP_LAST_MODE_STORAGE_KEY = 'bakari_last_mode_v1';
 
 const MP_COLORS = [
   '#e74c3c', // red
@@ -139,20 +138,6 @@ function mpClearSessionSnapshot() {
   try {
     localStorage.removeItem(MP_SESSION_STORAGE_KEY);
   } catch (_) {}
-}
-
-function mpSaveLastMode(mode) {
-  try {
-    localStorage.setItem(MP_LAST_MODE_STORAGE_KEY, mode);
-  } catch (_) {}
-}
-
-function mpLoadLastMode() {
-  try {
-    return localStorage.getItem(MP_LAST_MODE_STORAGE_KEY);
-  } catch (_) {
-    return null;
-  }
 }
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -458,7 +443,6 @@ function mpHandleGuestReconnectExhausted(reason) {
 // ─── Host: session creation ───────────────────────────────────────────────────
 
 function mpHostCreate(profile) {
-  mpSaveLastMode('multiplayer');
   const code = mpRandomCode(6);
   const peerId = MP_PEER_PREFIX + code;
   const matchId = mpRandomId('match');
@@ -1106,7 +1090,6 @@ function mpAdvanceTurn() {
 // ─── Guest: join session ──────────────────────────────────────────────────────
 
 function mpGuestConnect(hostPeerId, profile) {
-  mpSaveLastMode('multiplayer');
   const PeerCtor = mpGetPeerCtor();
   if (!PeerCtor) {
     mpShowError('Multiplayer could not start because PeerJS failed to load. Refresh and try again.');
@@ -1695,30 +1678,7 @@ window.mpGetLastMove = function mpGetLastMove() {
 // ─── Leave / cleanup ──────────────────────────────────────────────────────────
 
 function mpLeave() {
-  mpSaveLastMode('single');
   mpResetState();
-}
-
-function mpHasSharedPuzzleUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return params.has('seed') || params.has('difficulty');
-}
-
-function mpRestoreRememberedMode() {
-  if (mpSession || mpGetJoinParam() || mpHasSharedPuzzleUrl() || mpLoadLastMode() !== 'multiplayer') {
-    return;
-  }
-
-  const savedSession = mpLoadSessionSnapshot();
-  if (savedSession && savedSession.role === 'guest' && savedSession.hostPeerId) {
-    mpGuestSetup(savedSession.hostPeerId);
-    return;
-  }
-
-  if (savedSession && savedSession.role === 'host') {
-    mpClearSessionSnapshot();
-  }
-  mpRenderSetupForm('host', null);
 }
 
 // ─── UI: shared helpers ───────────────────────────────────────────────────────
@@ -2149,7 +2109,6 @@ function mpRenderSetupForm(mode, hostPeerId, takenColors = []) {
 
   // Close button
   document.getElementById('mp-setup-close').addEventListener('click', () => {
-    if (!mpSession) mpSaveLastMode('single');
     mpHideModal();
     if (mpSession) mpLeave();
   });
@@ -2164,7 +2123,6 @@ function mpRenderSetupForm(mode, hostPeerId, takenColors = []) {
 // ─── Guest: peek lobby and present setup form ─────────────────────────────────
 
 function mpGuestSetup(hostPeerId) {
-  mpSaveLastMode('multiplayer');
   const PeerCtor = mpGetPeerCtor();
   if (!PeerCtor) {
     mpModalContentEl.innerHTML = '';
@@ -2180,7 +2138,6 @@ function mpGuestSetup(hostPeerId) {
   `;
   mpShowModal();
   document.getElementById('mp-guest-setup-close').addEventListener('click', () => {
-    if (!mpSession) mpSaveLastMode('single');
     mpHideModal();
     if (mpSession) mpLeave();
   });
@@ -2398,30 +2355,12 @@ function mpInit() {
     });
   }
 
-  ['new-puzzle-btn', 'restart-btn'].forEach((id) => {
-    const btn = document.getElementById(id);
-    if (btn) {
-      btn.addEventListener('click', () => {
-        if (!mpSession) mpSaveLastMode('single');
-      });
-    }
-  });
-  const difficultyEl = document.getElementById('difficulty');
-  if (difficultyEl) {
-    difficultyEl.addEventListener('change', () => {
-      if (!mpSession) mpSaveLastMode('single');
-    });
-  }
-
   // Close modal backdrop click
   const backdrop = document.getElementById('mp-modal-backdrop');
   if (backdrop) {
     backdrop.addEventListener('click', () => {
       // Only dismiss if in setup form (not if joining or in lobby)
-      if (!mpSession) {
-        mpSaveLastMode('single');
-        mpHideModal();
-      }
+      if (!mpSession) mpHideModal();
     });
   }
 
@@ -2460,9 +2399,7 @@ function mpInit() {
   const joinPeerId = mpGetJoinParam();
   if (joinPeerId) {
     mpGuestSetup(joinPeerId);
-    return;
   }
-  mpRestoreRememberedMode();
 }
 
 // Run after DOM and game.js are ready

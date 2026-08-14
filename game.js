@@ -11,6 +11,7 @@ const GOAT_FACE_OPTIONS = [
   'assets/goat-face-3.svg'
 ];
 const HELP_MODAL_SEEN_KEY = 'bakari_help_modal_seen_v1';
+const DIFFICULTY_STORAGE_KEY = 'bakari_difficulty_v1';
 
 const boardEl = document.getElementById('board');
 const winBannerEl = document.getElementById('win-banner');
@@ -186,16 +187,35 @@ function generateRegions(size, goats, rand) {
   return regionMap;
 }
 
+function getValidDifficulty(difficulty, fallback = 'medium') {
+  return Object.prototype.hasOwnProperty.call(DIFFICULTIES, difficulty) ? difficulty : fallback;
+}
+
+function saveDifficulty(difficulty) {
+  try {
+    localStorage.setItem(DIFFICULTY_STORAGE_KEY, difficulty);
+  } catch {}
+}
+
+function getSavedDifficulty() {
+  try {
+    return getValidDifficulty(localStorage.getItem(DIFFICULTY_STORAGE_KEY));
+  } catch {
+    return 'medium';
+  }
+}
+
 function generatePuzzle(seed, difficulty) {
-  const size = DIFFICULTIES[difficulty].size;
-  const rand = seededRandom(`${difficulty}:${seed}`);
+  const validDifficulty = getValidDifficulty(difficulty);
+  const size = DIFFICULTIES[validDifficulty].size;
+  const rand = seededRandom(`${validDifficulty}:${seed}`);
 
   const goats = buildGoatPermutation(size, rand);
   const regionMap = generateRegions(size, goats, rand);
 
   return {
     seed,
-    difficulty,
+    difficulty: validDifficulty,
     size,
     goats,
     regionMap
@@ -450,9 +470,11 @@ function renderBoard() {
 }
 
 function startPuzzle(seed, difficulty) {
-  puzzle = generatePuzzle(seed, difficulty);
+  const validDifficulty = getValidDifficulty(difficulty);
+  puzzle = generatePuzzle(seed, validDifficulty);
   resetState();
-  difficultyEl.value = difficulty;
+  difficultyEl.value = validDifficulty;
+  saveDifficulty(validDifficulty);
   renderBoard();
 }
 
@@ -516,7 +538,7 @@ function getSeedFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const seed = params.get('seed');
   const difficulty = params.get('difficulty');
-  return seed ? { seed, difficulty: difficulty || 'medium' } : null;
+  return seed ? { seed, difficulty: getValidDifficulty(difficulty) } : null;
 }
 
 function newPuzzle() {
@@ -577,6 +599,6 @@ const urlPuzzle = getSeedFromUrl();
 if (urlPuzzle) {
   startPuzzle(urlPuzzle.seed, urlPuzzle.difficulty);
 } else {
-  startPuzzle(randomSeed(), 'medium');
+  startPuzzle(randomSeed(), getSavedDifficulty());
 }
 maybeShowFirstTimeHelpModal();

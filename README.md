@@ -44,7 +44,7 @@ The region palette includes a new pastel cyan (`#80deea`) so the larger 11-regio
 
 ## Controls
 
-- **Difficulty**: switches puzzle size/complexity.
+- **Difficulty**: switches puzzle size/complexity and is remembered locally.
 - **Seed input + Load Seed**: load a deterministic puzzle.
 - **New Puzzle**: generate a new random seed puzzle.
 - **Restart**: reset revealed cells for current seed.
@@ -82,7 +82,6 @@ Bakari supports **live local multiplayer** for 2–8 players using browser-based
 - Stats (goats found, total moves, elapsed time) are shown in the standard stats bar.
 - The player who finds the most goats wins; ties are broken by fewest total moves.
 - When the game ends a final standings screen is shown.
-- Bakari remembers whether you last used single-player or multiplayer on the basic URL. A QR/join URL always takes precedence and opens the guest join flow. Remembered multiplayer opens/resumes safely without auto-creating a host match; stale resume state is cleared when it cannot be used.
 
 ### Architecture summary
 
