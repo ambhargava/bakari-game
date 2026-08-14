@@ -199,7 +199,7 @@ function saveDifficulty(difficulty) {
 
 function getSavedDifficulty() {
   try {
-    return getValidDifficulty(localStorage.getItem(DIFFICULTY_STORAGE_KEY));
+    return getValidDifficulty(localStorage.getItem(DIFFICULTY_STORAGE_KEY) ?? 'medium');
   } catch {
     return 'medium';
   }
@@ -470,11 +470,10 @@ function renderBoard() {
 }
 
 function startPuzzle(seed, difficulty) {
-  const validDifficulty = getValidDifficulty(difficulty);
-  puzzle = generatePuzzle(seed, validDifficulty);
+  puzzle = generatePuzzle(seed, difficulty);
   resetState();
-  difficultyEl.value = validDifficulty;
-  saveDifficulty(validDifficulty);
+  difficultyEl.value = puzzle.difficulty;
+  saveDifficulty(puzzle.difficulty);
   renderBoard();
 }
 
