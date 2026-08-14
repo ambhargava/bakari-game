@@ -15,7 +15,7 @@
  * Message protocol (JSON objects over PeerJS data channels)
  * ─────────────────────────────────────────────────────────
  *   guest → host
- *     join           { type, name, color, icon }
+ *     join           { type, name, color }
  *     move           { type, row, col, moveId }
  *     resync_request { type }
  *
@@ -47,7 +47,7 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MP_PEER_PREFIX = 'bakari-';
-const MP_VERSION = '0.5.13';
+const MP_VERSION = '0.5.14';
 const MP_QR_SIZE = 200;
 const MP_PEER_OPEN_TIMEOUT_MS = 12000;
 const MP_CONN_OPEN_TIMEOUT_MS = 12000;
@@ -85,15 +85,13 @@ const MP_COLORS = [
   '#607d8b', // slate
 ];
 
-const MP_ICONS = ['🦁', '🐬', '🐘', '🦊', '🦋', '🐢', '🦅', '🐙'];
-
 // ─── Profile persistence ──────────────────────────────────────────────────────
 
 function mpSaveProfile(profile) {
   try {
     localStorage.setItem(
       MP_PROFILE_STORAGE_KEY,
-      JSON.stringify({ name: profile.name, color: profile.color, icon: profile.icon }),
+      JSON.stringify({ name: profile.name, color: profile.color }),
     );
   } catch (_) {}
 }
@@ -120,7 +118,6 @@ function mpSaveSessionSnapshot() {
         ? {
             name: mpSession.myProfile.name,
             color: mpSession.myProfile.color,
-            icon: mpSession.myProfile.icon,
           }
         : null,
       updatedAt: Date.now(),
@@ -164,7 +161,7 @@ function mpClearSessionSnapshot() {
  *   waitingForMoveConfirm: boolean,  — legacy compatibility mirror for guests
  * }
  *
- * Player: { id, name, color, icon, score, totalMoves, isConnected, isHost }
+ * Player: { id, name, color, score, totalMoves, isConnected, isHost }
  */
 let mpSession = null;
 
@@ -220,12 +217,11 @@ function mpGetJoinParam() {
   return new URLSearchParams(window.location.search).get('join');
 }
 
-function mpMakePlayer(id, name, color, icon, isHost) {
+function mpMakePlayer(id, name, color, isHost) {
   return {
     id,
     name,
     color,
-    icon,
     score: 0,
     totalMoves: 0,
     isConnected: true,
@@ -451,7 +447,7 @@ function mpHostCreate(profile) {
   const peerId = MP_PEER_PREFIX + code;
   const matchId = mpRandomId('match');
   const hostPlayerId = `host-${code}`;
-  const hostPlayer = mpMakePlayer(hostPlayerId, profile.name, profile.color, profile.icon, true);
+  const hostPlayer = mpMakePlayer(hostPlayerId, profile.name, profile.color, true);
   hostPlayer.peerId = peerId;
   hostPlayer.resumeToken = mpRandomId('resume');
 
@@ -779,19 +775,13 @@ function mpHostHandleJoin(peerId, data) {
   const takenColors = mpSession.players
     .filter((p) => !player || p.id !== player.id)
     .map((p) => p.color);
-  const takenIcons = mpSession.players
-    .filter((p) => !player || p.id !== player.id)
-    .map((p) => p.icon);
   const colorConflict = takenColors.includes(data.color);
-  const iconConflict = takenIcons.includes(data.icon);
-  if (colorConflict || iconConflict) {
+  if (colorConflict) {
     if (conn) {
-      const what = [colorConflict && 'color', iconConflict && 'icon'].filter(Boolean).join(' and ');
       mpSend(conn, {
         type: 'join_rejected',
-        reason: `Your chosen ${what} is already taken by another player. Please pick a different one.`,
+        reason: 'Your chosen color is already taken by another player. Please pick a different one.',
         takenColors,
-        takenIcons,
       });
     }
     return;
@@ -799,13 +789,12 @@ function mpHostHandleJoin(peerId, data) {
 
   if (!player) {
     const nextPlayerId = requestedPlayerId || mpRandomId('player');
-    player = mpMakePlayer(nextPlayerId, data.name, data.color, data.icon, false);
+    player = mpMakePlayer(nextPlayerId, data.name, data.color, false);
     player.resumeToken = requestedResumeToken || mpRandomId('resume');
     mpSession.players.push(player);
   } else {
     player.name = data.name;
     player.color = data.color;
-    player.icon = data.icon;
   }
 
   if (player.peerId && player.peerId !== peerId && mpConnections[player.peerId]) {
@@ -1127,7 +1116,7 @@ function mpGuestConnect(hostPeerId, profile) {
       hostPeerId,
       matchId: null,
       resumeToken,
-      myProfile: mpMakePlayer(playerId, profile.name, profile.color, profile.icon, false),
+      myProfile: mpMakePlayer(playerId, profile.name, profile.color, false),
       players: [],
       status: 'lobby',
       currentTurnIdx: 0,
@@ -1145,7 +1134,6 @@ function mpGuestConnect(hostPeerId, profile) {
         version: MP_VERSION,
         name: profile.name,
         color: profile.color,
-        icon: profile.icon,
       },
     });
     mpGuestConnOpenTimer = setTimeout(() => {
@@ -1166,7 +1154,6 @@ function mpGuestConnect(hostPeerId, profile) {
         resumeToken: mpSession.resumeToken,
         name: profile.name,
         color: profile.color,
-        icon: profile.icon,
       });
       mpGuestWelcomeTimer = setTimeout(() => {
         if (mpSession && mpSession.status === 'lobby' && mpSession.players.length === 0) {
@@ -1302,7 +1289,6 @@ function mpGuestAttemptReconnect() {
         resumeToken: mpSession.resumeToken,
         name: mpSession.myProfile ? mpSession.myProfile.name : 'Guest',
         color: mpSession.myProfile ? mpSession.myProfile.color : MP_COLORS[0],
-        icon: mpSession.myProfile ? mpSession.myProfile.icon : MP_ICONS[0],
       });
       mpGuestWelcomeTimer = setTimeout(() => {
         mpGuestWelcomeTimer = null;
@@ -1401,14 +1387,13 @@ function mpGuestOnData(data) {
         if (mpSession.status === 'lobby') mpRenderLobbyGuestWaiting();
         break;
       }
-      if (data.takenColors !== undefined || data.takenIcons !== undefined) {
-        // Color/icon conflict — re-show the setup form without tearing down the connection
-        mpShowError(data.reason || 'That color or icon is already taken. Please choose a different one.');
+      if (data.takenColors !== undefined) {
+        // Color conflict — re-show the setup form without tearing down the connection
+        mpShowError(data.reason || 'That color is already taken. Please choose a different one.');
         mpRenderSetupForm(
           'guest',
           mpSession ? mpSession.hostPeerId : null,
           data.takenColors || [],
-          data.takenIcons || [],
         );
       } else {
         mpFailAndReset(data.reason || 'Joining was rejected by the host.');
@@ -1767,7 +1752,7 @@ function mpUpdateInGameUI() {
   } else if (isMyTurn) {
     turnLabel = '<strong>Your turn!</strong>';
   } else {
-    turnLabel = `${mpEscape(currentPlayer.icon)} ${mpEscape(currentPlayer.name)}'s turn`;
+    turnLabel = `${mpEscape(currentPlayer.name)}'s turn`;
   }
 
   const playerChips = mpSession.players.map((p) => {
@@ -1777,7 +1762,7 @@ function mpUpdateInGameUI() {
     const statusLabel = mpPlayerConnectionLabel(p);
     return `<span class="mp-player-chip${active ? ' active-turn' : ''}${disc}">
       <span class="mp-player-dot" style="background:${mpEscape(p.color)}"></span>
-      ${mpEscape(p.icon)} ${mpEscape(p.name)}
+      ${mpEscape(p.name)}
       ${statusLabel ? `<span class="mp-conn-pill">${mpEscape(statusLabel)}</span>` : ''}
       <span style="margin-left:0.25rem;font-size:0.7rem;color:#888">${p.score} 🐐</span>
     </span>`;
@@ -1785,7 +1770,7 @@ function mpUpdateInGameUI() {
 
   const me = mpSession.myProfile || mpSession.players.find((p) => p.id === mpSession.myId);
   const identityHtml = me
-    ? `<div class="mp-bar-identity">You are <span style="background:${mpEscape(me.color)};border:2px solid #000;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin:0 3px"></span>${mpEscape(me.icon)} ${mpEscape(me.name)}</div>`
+    ? `<div class="mp-bar-identity">You are <span style="background:${mpEscape(me.color)};border:2px solid #000;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin:0 3px"></span>${mpEscape(me.name)}</div>`
     : '';
 
   let reconnectHtml = '';
@@ -1869,7 +1854,6 @@ function mpRenderLobbyHostReconnecting() {
   const playersHtml = mpSession.players.map((p) => `
     <div class="mp-lobby-player-row">
       <span class="mp-lobby-dot" style="background:${mpEscape(p.color)}"></span>
-      <span>${mpEscape(p.icon)}</span>
       <span class="mp-lobby-name">${mpEscape(p.name)}</span>
       ${p.isHost ? '<span class="mp-lobby-badge">Host (you)</span>' : '<span class="mp-lobby-badge">Guest</span>'}
     </div>
@@ -1906,7 +1890,6 @@ function mpRenderLobbyHost() {
   const playersHtml = mpSession.players.map((p) => `
     <div class="mp-lobby-player-row">
       <span class="mp-lobby-dot" style="background:${mpEscape(p.color)}"></span>
-      <span>${mpEscape(p.icon)}</span>
       <span class="mp-lobby-name">${mpEscape(p.name)}</span>
       ${p.isHost ? '<span class="mp-lobby-badge">Host (you)</span>' : '<span class="mp-lobby-badge">Guest</span>'}
       ${mpPlayerConnectionLabel(p) ? `<span class="mp-lobby-badge">${mpEscape(mpPlayerConnectionLabel(p))}</span>` : ''}
@@ -1992,7 +1975,6 @@ function mpRenderLobbyGuestWaiting() {
   const playersHtml = mpSession.players.map((p) => `
     <div class="mp-lobby-player-row">
       <span class="mp-lobby-dot" style="background:${mpEscape(p.color)}"></span>
-      <span>${mpEscape(p.icon)}</span>
       <span class="mp-lobby-name">${mpEscape(p.name)}</span>
       ${p.isHost ? '<span class="mp-lobby-badge">Host</span>' : ''}
       ${p.id === mpSession.myId ? '<span class="mp-lobby-badge">You</span>' : ''}
@@ -2035,7 +2017,7 @@ function mpRenderLobbyGuestWaiting() {
 
 // ─── UI: profile setup form ───────────────────────────────────────────────────
 
-function mpRenderSetupForm(mode, hostPeerId, takenColors = [], takenIcons = []) {
+function mpRenderSetupForm(mode, hostPeerId, takenColors = []) {
   // Load last-used profile from localStorage
   const saved = mpLoadProfile();
 
@@ -2046,25 +2028,11 @@ function mpRenderSetupForm(mode, hostPeerId, takenColors = [], takenIcons = []) 
     MP_COLORS.find((c) => !takenColors.includes(c)) ||
     MP_COLORS[0];
 
-  // Pick default icon: saved preference if available and not taken, else first free
-  const savedIcon = saved && MP_ICONS.includes(saved.icon) ? saved.icon : null;
-  const defaultIcon =
-    (savedIcon && !takenIcons.includes(savedIcon) ? savedIcon : null) ||
-    MP_ICONS.find((ic) => !takenIcons.includes(ic)) ||
-    MP_ICONS[0];
-
   const colorSwatches = MP_COLORS.map((c) => {
     const taken = takenColors.includes(c);
     const selected = c === defaultColor;
     return `<button type="button" class="mp-color-swatch${selected ? ' selected' : ''}${taken ? ' used' : ''}"
       data-color="${c}" style="background:${c}" aria-label="Color ${c}"${taken ? ' disabled' : ''}></button>`;
-  }).join('');
-
-  const iconBtns = MP_ICONS.map((ic) => {
-    const taken = takenIcons.includes(ic);
-    const selected = ic === defaultIcon;
-    return `<button type="button" class="mp-icon-btn${selected ? ' selected' : ''}${taken ? ' used' : ''}"
-      data-icon="${ic}"${taken ? ' disabled' : ''}>${ic}</button>`;
   }).join('');
 
   const title = mode === 'host' ? 'Create Multiplayer Match' : 'Join Multiplayer Match';
@@ -2085,11 +2053,6 @@ function mpRenderSetupForm(mode, hostPeerId, takenColors = [], takenIcons = []) 
       <div class="mp-color-picker" id="mp-color-picker">${colorSwatches}</div>
     </div>
 
-    <div class="mp-field">
-      <label>Icon</label>
-      <div class="mp-icon-picker" id="mp-icon-picker">${iconBtns}</div>
-    </div>
-
     <div class="mp-btn-row">
       <button id="mp-action-btn" class="mp-btn-primary">${actionLabel}</button>
     </div>
@@ -2098,7 +2061,6 @@ function mpRenderSetupForm(mode, hostPeerId, takenColors = [], takenIcons = []) 
   mpShowModal();
 
   let selectedColor = defaultColor;
-  let selectedIcon = defaultIcon;
 
   // Color swatch picker
   document.getElementById('mp-color-picker').addEventListener('click', (e) => {
@@ -2109,15 +2071,6 @@ function mpRenderSetupForm(mode, hostPeerId, takenColors = [], takenIcons = []) 
     swatch.classList.add('selected');
   });
 
-  // Icon picker
-  document.getElementById('mp-icon-picker').addEventListener('click', (e) => {
-    const btn = e.target.closest('.mp-icon-btn');
-    if (!btn || btn.disabled) return;
-    selectedIcon = btn.dataset.icon;
-    document.querySelectorAll('.mp-icon-btn').forEach((b) => b.classList.remove('selected'));
-    btn.classList.add('selected');
-  });
-
   // Action button
   document.getElementById('mp-action-btn').addEventListener('click', () => {
     const name = document.getElementById('mp-name-input').value.trim();
@@ -2125,13 +2078,13 @@ function mpRenderSetupForm(mode, hostPeerId, takenColors = [], takenIcons = []) 
       document.getElementById('mp-name-input').focus();
       return;
     }
-    const profile = { name, color: selectedColor, icon: selectedIcon };
+    const profile = { name, color: selectedColor };
     mpSaveProfile(profile);
     if (mode === 'host') {
       mpHostCreate(profile);
     } else {
       // Peer and connection already established by mpGuestSetup; just send the join message
-      mpSession.myProfile = mpMakePlayer(mpSession.myId, profile.name, profile.color, profile.icon, false);
+      mpSession.myProfile = mpMakePlayer(mpSession.myId, profile.name, profile.color, false);
       mpSession.myProfile.resumeToken = mpSession.resumeToken;
       mpSaveSessionSnapshot();
       mpSendToHost({
@@ -2142,7 +2095,6 @@ function mpRenderSetupForm(mode, hostPeerId, takenColors = [], takenIcons = []) 
         resumeToken: mpSession.resumeToken,
         name: profile.name,
         color: profile.color,
-        icon: profile.icon,
       });
       mpGuestWelcomeTimer = setTimeout(() => {
         if (mpSession && mpSession.status === 'lobby') {
@@ -2226,7 +2178,6 @@ function mpGuestSetup(hostPeerId) {
             restoredPlayerId,
             savedSession.profile.name || 'Guest',
             savedSession.profile.color || MP_COLORS[0],
-            savedSession.profile.icon || MP_ICONS[0],
             false,
           )
         : null,
@@ -2274,8 +2225,7 @@ function mpGuestSetup(hostPeerId) {
           return;
         }
         const takenColors = (data.players || []).map((p) => p.color);
-        const takenIcons = (data.players || []).map((p) => p.icon);
-        mpRenderSetupForm('guest', hostPeerId, takenColors, takenIcons);
+        mpRenderSetupForm('guest', hostPeerId, takenColors);
         return;
       }
       mpGuestOnData(data);
@@ -2313,7 +2263,7 @@ function mpShowWinScreen() {
   if (!mpSession) return;
 
   const winner = mpSession.winner;
-  const winnerName = winner ? `${winner.icon} ${winner.name}` : 'Nobody';
+  const winnerName = winner ? winner.name : 'Nobody';
 
   // Sort standings: most goats first, tiebreak by fewest moves
   const standings = [...mpSession.players].sort((a, b) => {
@@ -2328,7 +2278,7 @@ function mpShowWinScreen() {
       <td>
         <div class="mp-standing-player">
           <span class="mp-lobby-dot" style="background:${mpEscape(p.color)}"></span>
-          ${mpEscape(p.icon)} ${mpEscape(p.name)}
+          ${mpEscape(p.name)}
           ${isWinner ? ' 🏆' : ''}
         </div>
       </td>
